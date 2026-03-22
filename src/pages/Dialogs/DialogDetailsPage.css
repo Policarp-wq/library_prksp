@@ -1,0 +1,54 @@
+.dialog-details {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.dialog-details__title {
+  color: #2c3e50;
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.dialog-details__subtitle {
+  color: #4d6278;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.messages-list {
+  list-style: none;
+  margin: 0;
+  padding: 1.5rem;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dialog-details__form {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dialog-details__textarea {
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid #c6d0da;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.dialog-details__button {
+  align-self: flex-start;
+  border: none;
+  background: #2c3e50;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  cursor: pointer;
+}
