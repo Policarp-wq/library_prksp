@@ -1,38 +1,37 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
+import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import MessageItem from '../../components/dialogs/MessageItem'
-import type { Dialog, DialogMessage } from '../../types/dialogs'
+import { sendMessage } from "../../features/dialogs/dialogsSlice";
 import './DialogDetailsPage.css'
 
-interface DialogDetailsPageProps {
-  dialogs: Dialog[]
-  messages: DialogMessage[]
-  onSendMessage: (dialogId: number, messageText: string) => void
-}
-
-function DialogDetailsPage({ dialogs, messages, onSendMessage }: DialogDetailsPageProps) {
-  const { id } = useParams<{ id: string }>()
-  const [messageText, setMessageText] = useState('')
-  const dialogId = Number(id)
+function DialogDetailsPage() {
+  const dispatch = useAppDispatch();
+  const { dialogs, messages } = useAppSelector((state) => state.dialogs);
+  const { id } = useParams<{ id: string }>();
+  const [messageText, setMessageText] = useState("");
+  const dialogId = Number(id);
 
   if (!id || Number.isNaN(dialogId)) {
-    return <h1 className="dialog-details__title">Диалог не найден</h1>
+    return <h1 className="dialog-details__title">Диалог не найден</h1>;
   }
 
-  const dialog = dialogs.find((item) => item.id === dialogId)
+  const dialog = dialogs.find((item) => item.id === dialogId);
 
   if (!dialog) {
-    return <h1 className="dialog-details__title">Диалог не найден</h1>
+    return <h1 className="dialog-details__title">Диалог не найден</h1>;
   }
 
-  const selectedMessages = messages.filter((item) => item.dialogId === dialogId)
+  const selectedMessages = messages.filter(
+    (item) => item.dialogId === dialogId
+  );
 
   const handleSubmitMessage = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    onSendMessage(dialogId, messageText)
-    setMessageText('')
-  }
+    event.preventDefault();
+    dispatch(sendMessage({ dialogId, messageText }));
+    setMessageText("");
+  };
 
   return (
     <section className="dialog-details">
@@ -41,7 +40,11 @@ function DialogDetailsPage({ dialogs, messages, onSendMessage }: DialogDetailsPa
 
       <ul className="messages-list">
         {selectedMessages.map((item) => (
-          <MessageItem key={item.id} message={item.message} author={item.author} />
+          <MessageItem
+            key={item.id}
+            message={item.message}
+            author={item.author}
+          />
         ))}
       </ul>
 
@@ -58,7 +61,7 @@ function DialogDetailsPage({ dialogs, messages, onSendMessage }: DialogDetailsPa
         </button>
       </form>
     </section>
-  )
+  );
 }
 
 export default DialogDetailsPage
