@@ -1,44 +1,25 @@
 import { Book } from '../models/Book'
 
 export class BookRepository {
-  private books: Book[]
-
-  constructor() {
-    this.books = [
-      new Book(
-        'Мастер и Маргарита',
-        'Михаил Булгаков',
-        1967
-      ),
-      new Book(
-        'Война и мир',
-        'Лев Толстой',
-        1869,
-      ),
-      new Book(
-        'Преступление и наказание',
-        'Фёдор Достоевский',
-        1866
-      ),
-      new Book(
-        'Евгений Онегин',
-        'Александр Пушкин',
-        1833,
-      ),
-      new Book(
-        'Анна Каренина',
-        'Лев Толстой',
-        1877
-      ),
-      new Book(
-        'Идиот',
-        'Фёдор Достоевский',
-        1869,
-      ),
-    ]
+  async getAvailableBooks(): Promise<Book[]> {
+    const res = await fetch("/api/books");
+    const data = await res.json();
+    return data.map(
+      (b: any) => new Book(b.title, b.author, b.year, b.image, b.id)
+    );
   }
 
-  getAvailableBooks(): Book[] {
-    return this.books
+  async addBook(book: Book): Promise<Book> {
+    const res = await fetch("/api/books", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(book),
+    });
+    const b = await res.json();
+    return new Book(b.title, b.author, b.year, b.image, b.id);
+  }
+
+  async deleteBook(id: number): Promise<void> {
+    await fetch(`/api/books/${id}`, { method: "DELETE" });
   }
 }
