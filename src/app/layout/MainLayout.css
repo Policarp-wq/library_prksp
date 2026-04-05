@@ -31,6 +31,12 @@
   background-color: rgba(255, 255, 255, 0.25);
 }
 
+.nav-link--button {
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+}
+
 .main-content {
   flex: 1;
   padding: 2rem 0;

@@ -46,12 +46,14 @@ export function loadDialogsState(): DialogsState {
 }
 
 export function saveDialogsState(state: DialogsState) {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  window.localStorage.setItem(DIALOGS_STORAGE_KEY, JSON.stringify(state.dialogs))
-  window.localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(state.messages))
+  window.localStorage.setItem(
+    DIALOGS_STORAGE_KEY,
+    JSON.stringify(state.dialogs)
+  );
+  window.localStorage.setItem(
+    MESSAGES_STORAGE_KEY,
+    JSON.stringify(state.messages)
+  );
 }
 
 const dialogsSlice = createSlice({
