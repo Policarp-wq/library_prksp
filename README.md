@@ -1,4 +1,9 @@
-# React + TypeScript + Vite
+npm : Невозможно загрузить файл C:\nvm4w\nodejs\npm.ps1, так как выполнение сценариев отключено в этой системе. Для получения дополнительных сведений см. about_Execution_Policies по адресу https:/go.microsoft.com/fwlink/?LinkID=135170.
+строка:1 знак:1
++ npm run dev
++ ~~~
+    + CategoryInfo          : Ошибка безопасности: (:) [], PSSecurityException
+    + FullyQualifiedErrorId : UnauthorizedAccess# React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

@@ -1,4 +1,17 @@
 import { Book } from '../models/Book'
+import { store } from "../app/store";
+
+function getAuthHeaders(): Record<string, string> {
+  const state = store.getState();
+  const token = state.auth.accessToken;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
 
 export class BookRepository {
   async getAvailableBooks(): Promise<Book[]> {
@@ -9,11 +22,8 @@ export class BookRepository {
     );
   }
 
-  async addBook(book: Book, userId?: string): Promise<Book> {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (userId) headers["x-user-id"] = userId;
+  async addBook(book: Book): Promise<Book> {
+    const headers = getAuthHeaders();
 
     const res = await fetch("/api/books", {
       method: "POST",
@@ -24,17 +34,8 @@ export class BookRepository {
     return new Book(b.title, b.author, b.year, b.image, b.id, b.owner_id);
   }
 
-  async editBook(
-    id: number,
-    book: Partial<Book>,
-    userId?: string,
-    userRoles?: string[]
-  ): Promise<void> {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (userId) headers["x-user-id"] = userId;
-    if (userRoles) headers["x-user-roles"] = userRoles.join(",");
+  async editBook(id: number, book: Partial<Book>): Promise<void> {
+    const headers = getAuthHeaders();
 
     await fetch(`/api/books/${id}`, {
       method: "PUT",
@@ -43,14 +44,8 @@ export class BookRepository {
     });
   }
 
-  async deleteBook(
-    id: number,
-    userId?: string,
-    userRoles?: string[]
-  ): Promise<void> {
-    const headers: Record<string, string> = {};
-    if (userId) headers["x-user-id"] = userId;
-    if (userRoles) headers["x-user-roles"] = userRoles.join(",");
+  async deleteBook(id: number): Promise<void> {
+    const headers = getAuthHeaders();
 
     await fetch(`/api/books/${id}`, { method: "DELETE", headers });
   }

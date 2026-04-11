@@ -35,182 +35,242 @@ export interface AuthUser {
   roles: string[]
 }
 
+export interface LoginCredentials {
+  username: string;
+  password: string;
+}
+
 export interface AuthState {
-  isAuthenticated: boolean
-  user: AuthUser | null
-  accessToken: string | null
-  idToken: string | null
-  status: 'idle' | 'loading' | 'failed'
-  error: string | null
+  isAuthenticated: boolean;
+  user: AuthUser | null;
+  accessToken: string | null;
+  idToken: string | null;
+  status: "idle" | "loading" | "failed";
+  error: string | null;
 }
 
 interface PkceCallbackArgs {
-  code: string
-  codeVerifier: string
+  code: string;
+  codeVerifier: string;
 }
 
 interface MockAuthPayload {
-  name: string
-  roles: string[]
+  name: string;
+  roles: string[];
 }
 
 function decodeJwtPayload(token: string): JwtPayload {
-  const payloadPart = token.split('.')[1]
+  const payloadPart = token.split(".")[1];
 
   if (!payloadPart) {
-    return {}
+    return {};
   }
 
-  const base64 = payloadPart.replace(/-/g, '+').replace(/_/g, '/')
-  const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4)
+  const base64 = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
 
   try {
-    const decoded = atob(padded)
-    return JSON.parse(decoded) as JwtPayload
+    const decoded = atob(padded);
+    return JSON.parse(decoded) as JwtPayload;
   } catch {
-    return {}
+    return {};
   }
 }
 
 function extractRoles(payload: JwtPayload) {
-  const fromClaim = Array.isArray(payload.roles) ? payload.roles : []
+  const fromClaim = Array.isArray(payload.roles) ? payload.roles : [];
   const fromRealm = Array.isArray(payload.realm_access?.roles)
     ? payload.realm_access.roles
-    : []
+    : [];
 
-  return [...new Set([...fromClaim, ...fromRealm])]
+  return [...new Set([...fromClaim, ...fromRealm])];
 }
 
 function buildUserFromToken(token: string): AuthUser {
-  const payload = decodeJwtPayload(token)
-  const roles = extractRoles(payload)
+  const payload = decodeJwtPayload(token);
+  const roles = extractRoles(payload);
 
   return {
-    id: payload.sub ?? 'unknown',
-    name: payload.preferred_username ?? payload.name ?? 'Пользователь',
+    id: payload.sub ?? "unknown",
+    name: payload.preferred_username ?? payload.name ?? "Пользователь",
     roles,
-  }
+  };
 }
 
 function readStoredAuth(): AuthState | null {
-  const value = localStorage.getItem(AUTH_STORAGE_KEY)
+  const value = localStorage.getItem(AUTH_STORAGE_KEY);
 
   if (!value) {
-    return null
+    return null;
   }
 
   try {
-    return JSON.parse(value) as AuthState
+    return JSON.parse(value) as AuthState;
   } catch {
-    return null
+    return null;
   }
 }
 
-const initialState: AuthState =
-  readStoredAuth() ?? {
-    isAuthenticated: false,
-    user: null,
-    accessToken: null,
-    idToken: null,
-    status: 'idle',
-    error: null,
-  }
+const initialState: AuthState = readStoredAuth() ?? {
+  isAuthenticated: false,
+  user: null,
+  accessToken: null,
+  idToken: null,
+  status: "idle",
+  error: null,
+};
 
 export const completePkceLogin = createAsyncThunk<
   { accessToken: string; idToken: string | null; user: AuthUser },
   PkceCallbackArgs,
   { rejectValue: string }
->('auth/completePkceLogin', async ({ code, codeVerifier }, thunkApi) => {
+>("auth/completePkceLogin", async ({ code, codeVerifier }, thunkApi) => {
   if (!OAUTH_CONFIG.clientId || !OAUTH_CONFIG.tokenEndpoint) {
     return thunkApi.rejectWithValue(
-      'Не настроен OAuth провайдер. Заполните переменные окружения VITE_OAUTH_CLIENT_ID и VITE_OAUTH_TOKEN_URL.',
-    )
+      "Не настроен OAuth провайдер. Заполните переменные окружения VITE_OAUTH_CLIENT_ID и VITE_OAUTH_TOKEN_URL."
+    );
   }
 
   const body = new URLSearchParams({
-    grant_type: 'authorization_code',
+    grant_type: "authorization_code",
     code,
     client_id: OAUTH_CONFIG.clientId,
     redirect_uri: OAUTH_CONFIG.redirectUri,
     code_verifier: codeVerifier,
-  })
+  });
 
   const response = await fetch(OAUTH_CONFIG.tokenEndpoint, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
+      "Content-Type": "application/x-www-form-urlencoded",
     },
     body,
-  })
+  });
 
   if (!response.ok) {
-    return thunkApi.rejectWithValue('Не удалось получить токен авторизации.')
+    return thunkApi.rejectWithValue("Не удалось получить токен авторизации.");
   }
 
-  const tokenResponse = (await response.json()) as TokenResponse
+  const tokenResponse = (await response.json()) as TokenResponse;
 
   if (!tokenResponse.access_token) {
-    return thunkApi.rejectWithValue('OAuth провайдер не вернул access_token.')
+    return thunkApi.rejectWithValue("OAuth провайдер не вернул access_token.");
   }
 
-  const user = buildUserFromToken(tokenResponse.id_token ?? tokenResponse.access_token)
+  const user = buildUserFromToken(
+    tokenResponse.id_token ?? tokenResponse.access_token
+  );
 
   return {
     accessToken: tokenResponse.access_token,
     idToken: tokenResponse.id_token ?? null,
     user,
+  };
+});
+
+export const loginWithCredentials = createAsyncThunk<
+  { accessToken: string; idToken: null; user: AuthUser },
+  LoginCredentials,
+  { rejectValue: string }
+>("auth/loginWithCredentials", async (credentials, thunkApi) => {
+  try {
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(credentials),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        return thunkApi.rejectWithValue("Неверные учетные данные");
+      }
+      return thunkApi.rejectWithValue("Ошибка сервера при авторизации");
+    }
+
+    const data = await response.json();
+
+    // server returns { token: "...", user: { id: "...", username: "...", role: "..." } }
+    return {
+      accessToken: data.token,
+      idToken: null,
+      user: {
+        id: data.user.id.toString(),
+        name: data.user.username,
+        roles: [data.user.role],
+      },
+    };
+  } catch (err) {
+    return thunkApi.rejectWithValue("Не удалось подключиться к серверу");
   }
-})
+});
 
 const authSlice = createSlice({
-  name: 'auth',
+  name: "auth",
   initialState,
   reducers: {
     clearAuthError: (state) => {
-      state.error = null
-      state.status = 'idle'
+      state.error = null;
+      state.status = "idle";
     },
     logout: (state) => {
-      state.isAuthenticated = false
-      state.user = null
-      state.accessToken = null
-      state.idToken = null
-      state.status = 'idle'
-      state.error = null
+      state.isAuthenticated = false;
+      state.user = null;
+      state.accessToken = null;
+      state.idToken = null;
+      state.status = "idle";
+      state.error = null;
     },
     setAuthFromMockUser: (state, action: PayloadAction<MockAuthPayload>) => {
-      state.isAuthenticated = true
+      state.isAuthenticated = true;
       state.user = {
         id: `mock-${action.payload.name}`,
         name: action.payload.name,
         roles: action.payload.roles,
-      }
-      state.accessToken = 'mock-token'
-      state.idToken = null
-      state.status = 'idle'
-      state.error = null
+      };
+      state.accessToken = "mock-token";
+      state.idToken = null;
+      state.status = "idle";
+      state.error = null;
     },
   },
   extraReducers: (builder) => {
     builder
       .addCase(completePkceLogin.pending, (state) => {
-        state.status = 'loading'
-        state.error = null
+        state.status = "loading";
+        state.error = null;
       })
       .addCase(completePkceLogin.fulfilled, (state, action) => {
-        state.status = 'idle'
-        state.isAuthenticated = true
-        state.user = action.payload.user
-        state.accessToken = action.payload.accessToken
-        state.idToken = action.payload.idToken
-        state.error = null
+        state.status = "idle";
+        state.isAuthenticated = true;
+        state.user = action.payload.user;
+        state.accessToken = action.payload.accessToken;
+        state.idToken = action.payload.idToken;
+        state.error = null;
       })
       .addCase(completePkceLogin.rejected, (state, action) => {
-        state.status = 'failed'
-        state.error = action.payload ?? 'Ошибка авторизации через PKCE.'
+        state.status = "failed";
+        state.error = action.payload ?? "Ошибка авторизации через PKCE.";
       })
+      .addCase(loginWithCredentials.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(loginWithCredentials.fulfilled, (state, action) => {
+        state.status = "idle";
+        state.isAuthenticated = true;
+        state.user = action.payload.user;
+        state.accessToken = action.payload.accessToken;
+        state.idToken = action.payload.idToken;
+        state.error = null;
+      })
+      .addCase(loginWithCredentials.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload ?? "Ошибка авторизации.";
+      });
   },
-})
+});
 
 export function saveAuthState(state: AuthState) {
   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(state))
