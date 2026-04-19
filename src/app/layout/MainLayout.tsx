@@ -6,6 +6,7 @@ import './MainLayout.css'
 function MainLayout() {
   const dispatch = useAppDispatch();
   const { isAuthenticated, user } = useAppSelector((state) => state.auth);
+  const isAdmin = isAuthenticated && Boolean(user?.roles.includes("admin"));
 
   return (
     <div className="app">
@@ -14,12 +15,14 @@ function MainLayout() {
           <NavLink to="/" className="nav-link">
             Home
           </NavLink>
-          <NavLink to="/dialogs" className="nav-link">
-            Dialogs
-          </NavLink>
           <NavLink to="/books" className="nav-link">
             Books
           </NavLink>
+          {isAdmin ? (
+            <NavLink to="/admin" className="nav-link">
+              Admin
+            </NavLink>
+          ) : null}
           <NavLink to="/auth" className="nav-link">
             Auth
           </NavLink>

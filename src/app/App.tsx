@@ -2,8 +2,6 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import MainLayout from "./layout/MainLayout";
 import HomePage from "../pages/HomePage";
 import BooksPage from "../pages/BooksPage";
-import DialogsPage from "../pages/Dialogs/DialogsPage";
-import DialogDetailsPage from "../pages/Dialogs/DialogDetailsPage";
 import ProtectedRoute from "../components/auth/ProtectedRoute";
 import AuthPage from "../pages/AuthPage";
 import AuthCallbackPage from "../pages/AuthCallbackPage";
@@ -20,8 +18,6 @@ function App() {
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
           <Route path="/forbidden" element={<ForbiddenPage />} />
-          <Route path="/dialogs" element={<DialogsPage />} />
-          <Route path="/dialogs/:id" element={<DialogDetailsPage />} />
           <Route path="/books" element={<BooksPage />} />
 
           <Route element={<ProtectedRoute roles={["user"]} />}>

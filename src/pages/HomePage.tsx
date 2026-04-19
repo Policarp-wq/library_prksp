@@ -67,9 +67,6 @@ function HomePage() {
               <li>
                 Перейти к <Link to="/books">каталогу книг</Link>
               </li>
-              <li>
-                Открыть <Link to="/dialogs">диалоги поддержки</Link>
-              </li>
             </ul>
           </div>
         </section>
