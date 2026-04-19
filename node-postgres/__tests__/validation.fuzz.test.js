@@ -1,0 +1,136 @@
+const fc = require('fast-check');
+
+process.env.NODE_ENV = 'test';
+
+const {
+  ALLOWED_ROLES,
+  isValidUsername,
+  isValidPassword,
+  parsePositiveIntId,
+  validateBookPayload,
+} = require('../server');
+
+describe('fuzz: role model and input validators', () => {
+  test('only admin/user are allowed roles', () => {
+    const allowed = [...ALLOWED_ROLES];
+
+    expect(allowed).toEqual(expect.arrayContaining(['admin', 'user']));
+    expect(allowed).toHaveLength(2);
+
+    fc.assert(
+      fc.property(fc.string(), (role) => {
+        if (role === 'admin' || role === 'user') {
+          return ALLOWED_ROLES.has(role) === true;
+        }
+        return ALLOWED_ROLES.has(role) === false;
+      })
+    );
+  });
+
+  test('username validator accepts only trimmed length 3..50 strings', () => {
+    fc.assert(
+      fc.property(fc.string({ minLength: 3, maxLength: 50 }), (raw) => {
+        const value = raw.trim();
+        fc.pre(value.length >= 3 && value.length <= 50);
+        return isValidUsername(value) === true;
+      })
+    );
+
+    fc.assert(
+      fc.property(fc.oneof(fc.integer(), fc.boolean(), fc.constant(null), fc.constant(undefined), fc.object()), (value) => {
+        return isValidUsername(value) === false;
+      })
+    );
+  });
+
+  test('password validator rejects non-strings and empty/too short strings', () => {
+    fc.assert(
+      fc.property(fc.oneof(fc.integer(), fc.boolean(), fc.constant(null), fc.constant(undefined), fc.object()), (value) => {
+        return isValidPassword(value) === false;
+      })
+    );
+
+    fc.assert(
+      fc.property(fc.string({ maxLength: 3 }), (value) => {
+        return isValidPassword(value) === false;
+      })
+    );
+  });
+
+  test('id parser returns only positive integers', () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 1, max: 1000000 }), (id) => {
+        return parsePositiveIntId(String(id)) === id;
+      })
+    );
+
+    fc.assert(
+      fc.property(
+        fc.oneof(
+          fc.integer({ max: 0 }),
+          fc.string().filter((s) => !/^[1-9]\d*$/.test(s.trim())),
+          fc.constant(null),
+          fc.constant(undefined)
+        ),
+        (value) => {
+          const parsed = parsePositiveIntId(String(value));
+          return parsed === null;
+        }
+      )
+    );
+  });
+
+  test('book payload validator accepts valid payload and rejects malformed payload', () => {
+    fc.assert(
+      fc.property(
+        fc.record({
+          title: fc.string({ minLength: 1, maxLength: 255 }).filter((s) => s.trim().length > 0),
+          author: fc.string({ minLength: 1, maxLength: 255 }).filter((s) => s.trim().length > 0),
+          year: fc.integer({ min: 1000, max: new Date().getFullYear() + 1 }),
+          image: fc.option(fc.string(), { nil: null }),
+        }),
+        (payload) => {
+          const result = validateBookPayload(payload);
+          return result.ok === true;
+        }
+      )
+    );
+
+    fc.assert(
+      fc.property(fc.oneof(
+        fc.constant(null),
+        fc.constant(undefined),
+        fc.integer(),
+        fc.boolean(),
+        fc.string(),
+        fc.record({
+          title: fc.oneof(fc.integer(), fc.constant(''), fc.string({ maxLength: 300 }).filter((s) => s.trim().length === 0 || s.length > 255)),
+          author: fc.string({ minLength: 1, maxLength: 100 }),
+          year: fc.integer({ min: 1000, max: new Date().getFullYear() + 1 }),
+          image: fc.option(fc.string(), { nil: null }),
+        }),
+        fc.record({
+          title: fc.string({ minLength: 1, maxLength: 100 }).filter((s) => s.trim().length > 0),
+          author: fc.oneof(fc.integer(), fc.constant(''), fc.string({ maxLength: 300 }).filter((s) => s.trim().length === 0 || s.length > 255)),
+          year: fc.integer({ min: 1000, max: new Date().getFullYear() + 1 }),
+          image: fc.option(fc.string(), { nil: null }),
+        }),
+        fc.record({
+          title: fc.string({ minLength: 1, maxLength: 100 }).filter((s) => s.trim().length > 0),
+          author: fc.string({ minLength: 1, maxLength: 100 }).filter((s) => s.trim().length > 0),
+          year: fc.oneof(fc.string(), fc.float(), fc.integer({ max: 999 }), fc.integer({ min: new Date().getFullYear() + 2, max: 9999 })),
+          image: fc.option(fc.string(), { nil: null }),
+        }),
+        fc.record({
+          title: fc.string({ minLength: 1, maxLength: 100 }).filter((s) => s.trim().length > 0),
+          author: fc.string({ minLength: 1, maxLength: 100 }).filter((s) => s.trim().length > 0),
+          year: fc.integer({ min: 1000, max: new Date().getFullYear() + 1 }),
+          image: fc.oneof(fc.integer(), fc.boolean(), fc.object()),
+        })
+      ), (payload) => {
+        const result = validateBookPayload(payload);
+        return result.ok === false;
+      })
+    );
+  });
+});

@@ -1,0 +1,108 @@
+.book-form {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.book-form__title {
+  margin: 0 0 1rem 0;
+  color: #2c3e50;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.book-form__error {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background-color: #ffebee;
+  color: #c62828;
+  border: 1px solid #ef5350;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.book-form__success {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #66bb6a;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.book-form__group {
+  margin-bottom: 1rem;
+}
+
+.book-form__input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.book-form__input:focus {
+  outline: none;
+  border-color: #2c3e50;
+  box-shadow: 0 0 0 2px rgba(44, 62, 80, 0.1);
+}
+
+.book-form__input:disabled {
+  background-color: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.book-form__actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.book-form__button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.book-form__button--submit {
+  background-color: #2c3e50;
+  color: white;
+  flex: 1;
+}
+
+.book-form__button--submit:hover:not(:disabled) {
+  background-color: #1a252f;
+}
+
+.book-form__button--submit:disabled {
+  background-color: #aaa;
+  cursor: not-allowed;
+}
+
+.book-form__button--cancel {
+  background-color: #e0e0e0;
+  color: #333;
+  flex: 1;
+}
+
+.book-form__button--cancel:hover:not(:disabled) {
+  background-color: #d0d0d0;
+}
+
+.book-form__button--cancel:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+  color: #999;
+}

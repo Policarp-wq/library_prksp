@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAppSelector } from "../app/hooks";
 import { BookRepository } from "../repositories/BookRepository";
 import BookCard from "../components/BookCard";
+import BookForm from "../components/BookForm";
 import { Book } from "../models/Book";
 import "./BooksPage.css";
 
@@ -9,58 +10,89 @@ const bookRepository = new BookRepository();
 
 function BooksPage() {
   const [books, setBooks] = useState<Book[]>([]);
+  const [total, setTotal] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [editingBook, setEditingBook] = useState<Book | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { user, isAuthenticated } = useAppSelector((state) => state.auth);
 
-  // Состояния для формы
-  const [title, setTitle] = useState("");
-  const [author, setAuthor] = useState("");
-  const [year, setYear] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
-
-  const fetchBooks = async () => {
-    const data = await bookRepository.getAvailableBooks();
-    setBooks(data);
+  const fetchBooks = async (page: number = 1, search: string = "") => {
+    setIsLoading(true);
+    try {
+      const result = await bookRepository.getAvailableBooks(
+        search || undefined,
+        page
+      );
+      setBooks(result.books);
+      setTotal(result.total);
+      setCurrentPage(result.page);
+      setTotalPages(result.totalPages);
+    } catch (err) {
+      console.error("Error fetching books:", err);
+      setBooks([]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
-    fetchBooks();
+    fetchBooks(1, "");
   }, []);
 
-  const handleAddOrEditBook = async (e: React.FormEvent) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !author || !year || !user) return;
+    setCurrentPage(1);
+    fetchBooks(1, searchQuery);
+  };
 
-    if (editingId) {
-      await bookRepository.editBook(
-        editingId,
-        { title, author, year: parseInt(year) },
-        user.id,
-        user.roles
-      );
-      setEditingId(null);
-    } else {
-      const newBook = new Book(title, author, parseInt(year));
-      await bookRepository.addBook(newBook, user.id);
+  const handleSaveBook = async (book: Book, isEdit: boolean) => {
+    if (!user) return;
+
+    try {
+      if (isEdit && book.id) {
+        await bookRepository.editBook(book.id, {
+          title: book.title,
+          author: book.author,
+          year: book.year,
+        });
+      } else {
+        await bookRepository.addBook(book);
+      }
+      setEditingBook(null);
+      setShowForm(false);
+      fetchBooks(currentPage, searchQuery);
+    } catch (err) {
+      console.error("Error saving book:", err);
+      throw err;
     }
-
-    fetchBooks();
-    setTitle("");
-    setAuthor("");
-    setYear("");
   };
 
   const handleEditClick = (book: Book) => {
-    setEditingId(book.id || null);
-    setTitle(book.title);
-    setAuthor(book.author);
-    setYear(book.year.toString());
+    setEditingBook(book);
+    setShowForm(true);
   };
 
   const handleDeleteBook = async (id?: number) => {
-    if (id && user) {
-      await bookRepository.deleteBook(id, user.id, user.roles);
-      fetchBooks();
+    if (
+      id &&
+      user &&
+      window.confirm("Вы уверены, что хотите удалить эту книгу?")
+    ) {
+      try {
+        await bookRepository.deleteBook(id);
+        fetchBooks(currentPage, searchQuery);
+      } catch (err) {
+        console.error("Error deleting book:", err);
+      }
     }
+  };
+
+  const handleCancel = () => {
+    setEditingBook(null);
+    setShowForm(false);
   };
 
   const canManageBook = (book: Book) => {
@@ -70,108 +102,141 @@ function BooksPage() {
     return isAdmin || isOwner;
   };
 
+  const handlePageChange = (page: number) => {
+    fetchBooks(page, searchQuery);
+  };
+
   return (
     <div className="books-page">
       <h1>Каталог доступных книг</h1>
 
-      {isAuthenticated && (
-        <form
-          onSubmit={handleAddOrEditBook}
-          className="add-book-form"
-          style={{
-            marginBottom: "20px",
-            padding: "15px",
-            border: "1px solid #ccc",
-            borderRadius: "8px",
-          }}
+      {/* Search Section */}
+      <form onSubmit={handleSearch} className="books-search">
+        <input
+          className="books-search__input"
+          type="text"
+          placeholder="Поиск по названию..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          disabled={isLoading}
+        />
+        <button
+          className="books-search__button"
+          type="submit"
+          disabled={isLoading}
         >
-          <h3>{editingId ? "Редактировать книгу" : "Добавить новую книгу"}</h3>
-          <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
-            <input
-              placeholder="Название"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-            />
-            <input
-              placeholder="Автор"
-              value={author}
-              onChange={(e) => setAuthor(e.target.value)}
-              required
-            />
-            <input
-              type="number"
-              placeholder="Год"
-              value={year}
-              onChange={(e) => setYear(e.target.value)}
-              required
-            />
-            <button type="submit">
-              {editingId ? "Сохранить" : "Добавить"}
+          {isLoading ? "Поиск..." : "Поиск"}
+        </button>
+      </form>
+
+      {/* Form Section */}
+      {isAuthenticated && (
+        <>
+          {!showForm && (
+            <button
+              className="books-add-button"
+              onClick={() => {
+                setEditingBook(null);
+                setShowForm(true);
+              }}
+            >
+              + Добавить книгу
             </button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingId(null);
-                  setTitle("");
-                  setAuthor("");
-                  setYear("");
-                }}
-              >
-                Отмена
-              </button>
-            )}
-          </div>
-        </form>
+          )}
+          {showForm && (
+            <BookForm
+              book={editingBook || undefined}
+              onSave={handleSaveBook}
+              onCancel={handleCancel}
+            />
+          )}
+        </>
       )}
 
-      <ul className="books-list">
-        {books.map((book) => (
-          <li
-            key={book.id}
-            className="books-list__item"
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "10px",
-              alignItems: "center",
-            }}
-          >
-            <BookCard book={book} />
-            {canManageBook(book) && (
-              <div style={{ display: "flex", gap: "8px" }}>
-                <button
-                  onClick={() => handleEditClick(book)}
-                  style={{
-                    padding: "5px 10px",
-                    backgroundColor: "blue",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                  }}
-                >
-                  Редактировать
-                </button>
-                <button
-                  onClick={() => handleDeleteBook(book.id)}
-                  style={{
-                    padding: "5px 10px",
-                    backgroundColor: "red",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                  }}
-                >
-                  Удалить
-                </button>
+      {/* Books List */}
+      {isLoading ? (
+        <div className="books-loading">Загрузка...</div>
+      ) : books.length === 0 ? (
+        <div className="books-empty">Книги не найдены</div>
+      ) : (
+        <>
+          <div className="books-info">
+            Найдено: {total} книг
+            {total % 10 === 1 && total % 100 !== 11
+              ? "а"
+              : total % 10 >= 2 &&
+                total % 10 <= 4 &&
+                (total % 100 < 10 || total % 100 >= 20)
+              ? "и"
+              : ""}
+          </div>
+          <ul className="books-list">
+            {books.map((book) => (
+              <li key={book.id} className="books-list__item">
+                <BookCard book={book} />
+                {canManageBook(book) && (
+                  <div className="books-list__actions">
+                    <button
+                      className="books-list__action books-list__action--edit"
+                      onClick={() => handleEditClick(book)}
+                      title="Редактировать"
+                    >
+                      ✎
+                    </button>
+                    <button
+                      className="books-list__action books-list__action--delete"
+                      onClick={() => handleDeleteBook(book.id)}
+                      title="Удалить"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="books-pagination">
+              <button
+                className="books-pagination__button"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1 || isLoading}
+              >
+                ← Назад
+              </button>
+
+              <div className="books-pagination__pages">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (page) => (
+                    <button
+                      key={page}
+                      className={`books-pagination__page ${
+                        currentPage === page
+                          ? "books-pagination__page--active"
+                          : ""
+                      }`}
+                      onClick={() => handlePageChange(page)}
+                      disabled={isLoading}
+                    >
+                      {page}
+                    </button>
+                  )
+                )}
               </div>
-            )}
-          </li>
-        ))}
-      </ul>
+
+              <button
+                className="books-pagination__button"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages || isLoading}
+              >
+                Вперёд →
+              </button>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

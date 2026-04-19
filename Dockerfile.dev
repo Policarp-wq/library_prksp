@@ -1,0 +1,15 @@
+FROM node:20-bookworm-slim
+
+WORKDIR /app
+
+# Скопируем package files
+COPY package*.json ./
+
+# Установим зависимости (включая dev)
+RUN npm ci
+
+# Expose Vite dev server port
+EXPOSE 5173
+
+# Запуск Vite dev server с --host для доступа извне контейнера
+CMD ["npm", "run", "dev", "--", "--host"]
