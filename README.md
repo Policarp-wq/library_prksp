@@ -97,6 +97,12 @@ Let's Encrypt (certbot):
 4. Перезапустить frontend:
 	- docker compose -f docker-compose.prod.yml up -d frontend
 
+Rate limit в nginx:
+
+- POST: не более 5 запросов в минуту на IP
+- Остальные методы: не более 60 запросов в минуту на IP
+- При превышении возвращается 429
+
 ### Фаззинг-тестирование
 
 Тесты находятся в node-postgres/__tests__/validation.fuzz.test.js.
