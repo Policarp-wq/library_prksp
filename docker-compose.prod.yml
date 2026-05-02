@@ -32,6 +32,9 @@ services:
     image: ${DOCKER_USERNAME}/library_prksp_frontend:${IMAGE_TAG:-latest}
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - ./certs:/etc/nginx/ssl:ro
     depends_on:
       - backend
 

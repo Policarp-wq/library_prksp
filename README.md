@@ -86,6 +86,17 @@ API выдачи/возврата:
 2. docker compose -f docker-compose.prod.yml pull
 3. docker compose -f docker-compose.prod.yml up -d
 
+Let's Encrypt (certbot):
+
+1. DNS A-запись домена должна указывать на VPS (если Cloudflare используется, для выпуска сертификата выставить DNS only на время проверки)
+2. На VPS выпустить сертификат:
+	- sudo certbot certonly --standalone -d your-domain.com --agree-tos -m you@example.com --non-interactive
+3. Положить сертификаты в ./certs:
+	- cp /etc/letsencrypt/live/your-domain.com/fullchain.pem ./certs/fullchain.pem
+	- cp /etc/letsencrypt/live/your-domain.com/privkey.pem ./certs/privkey.pem
+4. Перезапустить frontend:
+	- docker compose -f docker-compose.prod.yml up -d frontend
+
 ### Фаззинг-тестирование
 
 Тесты находятся в node-postgres/__tests__/validation.fuzz.test.js.

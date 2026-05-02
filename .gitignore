@@ -27,3 +27,6 @@ dist-ssr
 *.md
 **/*.md
 !README.md
+
+# TLS certificates for production
+certs/
