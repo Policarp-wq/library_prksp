@@ -8,6 +8,7 @@ export class Book {
   available?: boolean;
   canDelete?: boolean;
   deleteReason?: string;
+  url?: string;
 
   constructor(
     title: string,
@@ -18,7 +19,8 @@ export class Book {
     owner_id?: string,
     available?: boolean,
     canDelete?: boolean,
-    deleteReason?: string
+    deleteReason?: string,
+    url?: string
   ) {
     this.title = title;
     this.author = author;
@@ -29,5 +31,6 @@ export class Book {
     if (available !== undefined) this.available = available;
     if (canDelete !== undefined) this.canDelete = canDelete;
     if (deleteReason) this.deleteReason = deleteReason;
+    if (url) this.url = url;
   }
 }

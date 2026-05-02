@@ -61,6 +61,8 @@ API выдачи/возврата:
 
 - Если на книгу есть активная выдача (returned_at IS NULL), повторная выдача возвращает 409
 - В GET /api/books каждая книга содержит поле available (boolean), показывающее доступность
+- Для книги можно задать URL-источник (отображается в карточке)
+- URL валидируется: разрешены только http/https, запрещены javascript/data и localhost loopback адреса
 - Книгу нельзя удалить, если на неё есть активная выдача; при удалении книги исторические выдачи удаляются каскадно
 - Поиск каталога поддерживает query-параметры q, title, author (case-insensitive)
 
@@ -96,12 +98,6 @@ Let's Encrypt (certbot):
 	- cp /etc/letsencrypt/live/your-domain.com/privkey.pem ./certs/privkey.pem
 4. Перезапустить frontend:
 	- docker compose -f docker-compose.prod.yml up -d frontend
-
-Rate limit в nginx:
-
-- POST: не более 5 запросов в минуту на IP
-- Остальные методы: не более 60 запросов в минуту на IP
-- При превышении возвращается 429
 
 ### Фаззинг-тестирование
 

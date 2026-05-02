@@ -12,7 +12,7 @@ function BookCard({ book }: BookCardProps) {
       <div className="book-card__image-wrapper">
         <img
           className="book-card__image"
-          src={book.image || DEFAULT_BOOK_IMAGE}
+          src={book.url || DEFAULT_BOOK_IMAGE}
           alt={book.title}
         />
       </div>

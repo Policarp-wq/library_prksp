@@ -76,6 +76,7 @@ function BooksPage() {
           title: book.title,
           author: book.author,
           year: book.year,
+          url: book.url,
         });
       } else {
         await bookRepository.addBook(book);

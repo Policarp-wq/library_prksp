@@ -12,6 +12,7 @@ function BookForm({ book, onSave, onCancel }: BookFormProps) {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [year, setYear] = useState('');
+  const [url, setUrl] = useState('');
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -21,10 +22,12 @@ function BookForm({ book, onSave, onCancel }: BookFormProps) {
       setTitle(book.title);
       setAuthor(book.author);
       setYear(book.year.toString());
+      setUrl(book.url || '');
     } else {
       setTitle('');
       setAuthor('');
       setYear('');
+      setUrl('');
     }
   }, [book]);
 
@@ -38,8 +41,33 @@ function BookForm({ book, onSave, onCancel }: BookFormProps) {
       return;
     }
 
+    const normalizedUrl = url.trim();
+    if (normalizedUrl) {
+      try {
+        const parsed = new URL(normalizedUrl);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+          setError("URL должен начинаться с http:// или https://");
+          return;
+        }
+      } catch {
+        setError("Некорректный URL");
+        return;
+      }
+    }
+
     const isEdit = !!book;
-    const newBook = new Book(title, author, parseInt(year), undefined, book?.id, book?.owner_id);
+    const newBook = new Book(
+      title,
+      author,
+      parseInt(year),
+      undefined,
+      book?.id,
+      book?.owner_id,
+      undefined,
+      undefined,
+      undefined,
+      normalizedUrl || undefined
+    );
 
     try {
       setIsLoading(true);
@@ -50,6 +78,7 @@ function BookForm({ book, onSave, onCancel }: BookFormProps) {
         setTitle('');
         setAuthor('');
         setYear('');
+        setUrl('');
       }
       
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -112,6 +141,17 @@ function BookForm({ book, onSave, onCancel }: BookFormProps) {
           onChange={(e) => setYear(e.target.value)}
           disabled={isLoading}
           required
+        />
+      </div>
+
+      <div className="book-form__group">
+        <input
+          className="book-form__input"
+          type="url"
+          placeholder="Ссылка на книгу (https://...)"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          disabled={isLoading}
         />
       </div>
 
