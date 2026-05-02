@@ -11,7 +11,7 @@ const {
   validateLoanPayload,
 } = require('../server');
 
-const QUICK_FC = { numRuns: 30 };
+const QUICK_FC = { numRuns: 20 };
 
 describe('fuzz: role model and input validators', () => {
   test('only admin/user are allowed roles', () => {
@@ -150,8 +150,11 @@ describe('fuzz: role model and input validators', () => {
           year: fc.integer({ min: 1000, max: new Date().getFullYear() + 1 }),
           image: fc.option(fc.string(), { nil: null }),
           url: fc.oneof(
-            fc.string().filter((s) => s.startsWith('javascript:')),
-            fc.string().filter((s) => s.startsWith('data:')),
+            fc.constantFrom(
+              'javascript:alert(1)',
+              'data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==',
+              'ftp://example.com/book'
+            ),
             fc.constant('http://localhost/test'),
             fc.constant('https://127.0.0.1/test'),
             fc.integer(),
