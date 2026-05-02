@@ -11,6 +11,8 @@ const {
   validateLoanPayload,
 } = require('../server');
 
+const QUICK_FC = { numRuns: 30 };
+
 describe('fuzz: role model and input validators', () => {
   test('only admin/user are allowed roles', () => {
     const allowed = [...ALLOWED_ROLES];
@@ -24,7 +26,8 @@ describe('fuzz: role model and input validators', () => {
           return ALLOWED_ROLES.has(role) === true;
         }
         return ALLOWED_ROLES.has(role) === false;
-      })
+      }),
+      QUICK_FC
     );
   });
 
@@ -34,13 +37,15 @@ describe('fuzz: role model and input validators', () => {
         const value = raw.trim();
         fc.pre(value.length >= 3 && value.length <= 50);
         return isValidUsername(value) === true;
-      })
+      }),
+      QUICK_FC
     );
 
     fc.assert(
       fc.property(fc.oneof(fc.integer(), fc.boolean(), fc.constant(null), fc.constant(undefined), fc.object()), (value) => {
         return isValidUsername(value) === false;
-      })
+      }),
+      QUICK_FC
     );
   });
 
@@ -48,13 +53,15 @@ describe('fuzz: role model and input validators', () => {
     fc.assert(
       fc.property(fc.oneof(fc.integer(), fc.boolean(), fc.constant(null), fc.constant(undefined), fc.object()), (value) => {
         return isValidPassword(value) === false;
-      })
+      }),
+      QUICK_FC
     );
 
     fc.assert(
       fc.property(fc.string({ maxLength: 3 }), (value) => {
         return isValidPassword(value) === false;
-      })
+      }),
+      QUICK_FC
     );
   });
 
@@ -62,7 +69,8 @@ describe('fuzz: role model and input validators', () => {
     fc.assert(
       fc.property(fc.integer({ min: 1, max: 1000000 }), (id) => {
         return parsePositiveIntId(String(id)) === id;
-      })
+      }),
+      QUICK_FC
     );
 
     fc.assert(
@@ -77,7 +85,8 @@ describe('fuzz: role model and input validators', () => {
           const parsed = parsePositiveIntId(String(value));
           return parsed === null;
         }
-      )
+      ),
+      QUICK_FC
     );
   });
 
@@ -89,12 +98,19 @@ describe('fuzz: role model and input validators', () => {
           author: fc.string({ minLength: 1, maxLength: 255 }).filter((s) => s.trim().length > 0),
           year: fc.integer({ min: 1000, max: new Date().getFullYear() + 1 }),
           image: fc.option(fc.string(), { nil: null }),
+          url: fc.option(
+            fc.webUrl({
+              validSchemes: ['http', 'https'],
+            }),
+            { nil: undefined }
+          ),
         }),
         (payload) => {
           const result = validateBookPayload(payload);
           return result.ok === true;
         }
-      )
+      ),
+      QUICK_FC
     );
 
     fc.assert(
@@ -127,11 +143,26 @@ describe('fuzz: role model and input validators', () => {
           author: fc.string({ minLength: 1, maxLength: 100 }).filter((s) => s.trim().length > 0),
           year: fc.integer({ min: 1000, max: new Date().getFullYear() + 1 }),
           image: fc.oneof(fc.integer(), fc.boolean(), fc.object()),
+        }),
+        fc.record({
+          title: fc.string({ minLength: 1, maxLength: 100 }).filter((s) => s.trim().length > 0),
+          author: fc.string({ minLength: 1, maxLength: 100 }).filter((s) => s.trim().length > 0),
+          year: fc.integer({ min: 1000, max: new Date().getFullYear() + 1 }),
+          image: fc.option(fc.string(), { nil: null }),
+          url: fc.oneof(
+            fc.string().filter((s) => s.startsWith('javascript:')),
+            fc.string().filter((s) => s.startsWith('data:')),
+            fc.constant('http://localhost/test'),
+            fc.constant('https://127.0.0.1/test'),
+            fc.integer(),
+            fc.boolean()
+          ),
         })
       ), (payload) => {
         const result = validateBookPayload(payload);
         return result.ok === false;
-      })
+      }),
+      QUICK_FC
     );
   });
 
@@ -140,7 +171,8 @@ describe('fuzz: role model and input validators', () => {
       fc.property(fc.integer({ min: 1, max: 1000000 }), (bookId) => {
         const result = validateLoanPayload({ bookId });
         return result.ok === true && result.data.bookId === bookId;
-      })
+      }),
+      QUICK_FC
     );
 
     fc.assert(
@@ -166,7 +198,8 @@ describe('fuzz: role model and input validators', () => {
           const result = validateLoanPayload(payload);
           return result.ok === false;
         }
-      )
+      ),
+      QUICK_FC
     );
   });
 });

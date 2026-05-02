@@ -54,6 +54,54 @@ function parsePositiveIntId(value) {
   return parsed;
 }
 
+function normalizeBookUrl(value) {
+  if (value === undefined || value === null) {
+    return { ok: true, value: null };
+  }
+
+  if (typeof value !== "string") {
+    return { ok: false, error: "Invalid url" };
+  }
+
+  const normalized = value.trim();
+  if (!normalized) {
+    return { ok: true, value: null };
+  }
+
+  if (normalized.length > 2048) {
+    return { ok: false, error: "Invalid url" };
+  }
+
+  if (/[\u0000-\u001F\u007F]/.test(normalized)) {
+    return { ok: false, error: "Invalid url" };
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(normalized);
+  } catch {
+    return { ok: false, error: "Invalid url" };
+  }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return { ok: false, error: "Invalid url" };
+  }
+
+  if (!parsed.hostname || parsed.username || parsed.password) {
+    return { ok: false, error: "Invalid url" };
+  }
+
+  if (
+    parsed.hostname === "localhost" ||
+    parsed.hostname === "127.0.0.1" ||
+    parsed.hostname === "::1"
+  ) {
+    return { ok: false, error: "Invalid url" };
+  }
+
+  return { ok: true, value: parsed.toString() };
+}
+
 function validateBookPayload(payload) {
   if (!payload || typeof payload !== "object") {
     return { ok: false, error: "Invalid request body" };
@@ -85,6 +133,11 @@ function validateBookPayload(payload) {
     return { ok: false, error: "Invalid image" };
   }
 
+  const urlValidation = normalizeBookUrl(payload.url);
+  if (!urlValidation.ok) {
+    return { ok: false, error: urlValidation.error };
+  }
+
   return {
     ok: true,
     data: {
@@ -92,6 +145,7 @@ function validateBookPayload(payload) {
       author,
       year,
       image: payload.image ?? null,
+      url: urlValidation.value,
     },
   };
 }
@@ -190,12 +244,16 @@ async function initDb() {
         author VARCHAR(255) NOT NULL,
         year INTEGER NOT NULL,
         image TEXT,
-        owner_id VARCHAR(255)
+        owner_id VARCHAR(255),
+        url TEXT
       );
     `);
 
     try {
       await pool.query(`ALTER TABLE books ADD COLUMN owner_id VARCHAR(255);`);
+    } catch (e) {}
+    try {
+      await pool.query(`ALTER TABLE books ADD COLUMN url TEXT;`);
     } catch (e) {}
 
     const countRes = await pool.query("SELECT count(*) FROM books");
@@ -460,13 +518,13 @@ app.post("/api/books", authenticateToken, requireAdmin, async (req, res) => {
     return res.status(400).json({ error: validation.error });
   }
 
-  const { title, author, year, image } = validation.data;
+  const { title, author, year, image, url } = validation.data;
   const ownerId = String(req.user.id);
 
   try {
     const { rows } = await pool.query(
-      "INSERT INTO books (title, author, year, image, owner_id) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-      [title, author, year, image, ownerId]
+      "INSERT INTO books (title, author, year, image, owner_id, url) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
+      [title, author, year, image, ownerId, url]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -485,12 +543,12 @@ app.put("/api/books/:id", authenticateToken, requireAdmin, async (req, res) => {
     return res.status(400).json({ error: validation.error });
   }
 
-  const { title, author, year } = validation.data;
+  const { title, author, year, url } = validation.data;
 
   try {
     const { rows: updated } = await pool.query(
-      "UPDATE books SET title = $1, author = $2, year = $3 WHERE id = $4 RETURNING *",
-      [title, author, year, id]
+      "UPDATE books SET title = $1, author = $2, year = $3, url = $4 WHERE id = $5 RETURNING *",
+      [title, author, year, url, id]
     );
     if (updated.length === 0) {
       return res.status(404).json({ error: "Not found" });
