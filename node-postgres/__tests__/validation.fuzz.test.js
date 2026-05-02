@@ -8,6 +8,7 @@ const {
   isValidPassword,
   parsePositiveIntId,
   validateBookPayload,
+  validateLoanPayload,
 } = require('../server');
 
 describe('fuzz: role model and input validators', () => {
@@ -131,6 +132,36 @@ describe('fuzz: role model and input validators', () => {
         const result = validateBookPayload(payload);
         return result.ok === false;
       })
+    );
+  });
+
+  test('loan payload validator accepts only positive integer bookId', () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 1, max: 1000000 }), (bookId) => {
+        const result = validateLoanPayload({ bookId });
+        return result.ok === true && result.data.bookId === bookId;
+      })
+    );
+
+    fc.assert(
+      fc.property(
+        fc.oneof(
+          fc.constant(null),
+          fc.constant(undefined),
+          fc.string(),
+          fc.boolean(),
+          fc.object(),
+          fc.record({}),
+          fc.record({ bookId: fc.integer({ max: 0 }) }),
+          fc.record({ bookId: fc.string() }),
+          fc.record({ bookId: fc.float() }),
+          fc.record({ bookId: fc.constant(null) })
+        ),
+        (payload) => {
+          const result = validateLoanPayload(payload);
+          return result.ok === false;
+        }
+      )
     );
   });
 });

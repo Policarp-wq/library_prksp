@@ -5,6 +5,7 @@ export class Book {
   year: number;
   image?: string;
   owner_id?: string;
+  available?: boolean;
 
   constructor(
     title: string,
@@ -12,7 +13,8 @@ export class Book {
     year: number,
     image?: string,
     id?: number,
-    owner_id?: string
+    owner_id?: string,
+    available?: boolean
   ) {
     this.title = title;
     this.author = author;
@@ -20,5 +22,6 @@ export class Book {
     this.image = image;
     if (id) this.id = id;
     if (owner_id) this.owner_id = owner_id;
+    if (available !== undefined) this.available = available;
   }
 }

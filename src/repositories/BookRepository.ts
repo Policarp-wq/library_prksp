@@ -2,11 +2,30 @@ import { Book } from '../models/Book'
 import { store } from "../app/store";
 
 interface BooksResponse {
-  books: any[];
+  books: Array<{
+    id: number;
+    title: string;
+    author: string;
+    year: number;
+    image: string | null;
+    owner_id: string | null;
+    available?: boolean;
+  }>;
   total: number;
   page: number;
   totalPages: number;
   limit: number;
+}
+
+export interface LoanRecord {
+  id: number;
+  user_id: number;
+  book_id: number;
+  issued_at: string;
+  returned_at: string | null;
+  book_title?: string;
+  book_author?: string;
+  book_year?: number;
 }
 
 function getAuthHeaders(): Record<string, string> {
@@ -23,7 +42,7 @@ function getAuthHeaders(): Record<string, string> {
 
 export class BookRepository {
   async getAvailableBooks(
-    search?: string,
+    query?: string,
     page: number = 1
   ): Promise<{
     books: Book[];
@@ -32,16 +51,28 @@ export class BookRepository {
     totalPages: number;
   }> {
     const params = new URLSearchParams();
-    if (search) params.append("search", search);
+    if (query) params.append("q", query);
     params.append("page", page.toString());
 
     const res = await fetch(`/api/books?${params.toString()}`);
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "Ошибка при загрузке каталога");
+    }
     const data: BooksResponse = await res.json();
 
     return {
       books: data.books.map(
-        (b: any) =>
-          new Book(b.title, b.author, b.year, b.image, b.id, b.owner_id)
+        (b) =>
+          new Book(
+            b.title,
+            b.author,
+            b.year,
+            b.image ?? undefined,
+            b.id,
+            b.owner_id ?? undefined,
+            b.available
+          )
       ),
       total: data.total,
       page: data.page,
@@ -97,5 +128,55 @@ export class BookRepository {
       const data = await res.json();
       throw new Error(data.error || "Ошибка при удалении книги");
     }
+  }
+
+  async borrowBook(bookId: number): Promise<LoanRecord> {
+    const headers = getAuthHeaders();
+    const res = await fetch("/api/loans", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ bookId }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Ошибка при выдаче книги");
+    }
+
+    return data as LoanRecord;
+  }
+
+  async returnLoan(loanId: number): Promise<LoanRecord> {
+    const headers = getAuthHeaders();
+    const res = await fetch(`/api/loans/${loanId}/return`, {
+      method: "PATCH",
+      headers,
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Ошибка при возврате книги");
+    }
+
+    return data as LoanRecord;
+  }
+
+  async getLoans(activeOnly: boolean = false): Promise<LoanRecord[]> {
+    const headers = getAuthHeaders();
+    const params = new URLSearchParams();
+    if (activeOnly) {
+      params.append("active", "true");
+    }
+    const query = params.toString();
+    const endpoint = query ? `/api/loans?${query}` : "/api/loans";
+
+    const res = await fetch(endpoint, { headers });
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Ошибка при загрузке выдач");
+    }
+
+    return data as LoanRecord[];
   }
 }

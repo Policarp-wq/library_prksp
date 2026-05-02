@@ -80,6 +80,14 @@
   font-size: 1.1rem;
 }
 
+.books-error {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  background: #fdecea;
+  color: #b23b2f;
+}
+
 .books-info {
   margin-bottom: 1rem;
   color: #555;
@@ -106,6 +114,31 @@
   display: flex;
   gap: 0.5rem;
   justify-content: center;
+}
+
+.books-list__loan-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.books-list__loan-button {
+  border: 1px solid #2c3e50;
+  background: #2c3e50;
+  color: #fff;
+  border-radius: 4px;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+}
+
+.books-list__loan-button:disabled {
+  border-color: #aaa;
+  background: #aaa;
+  cursor: not-allowed;
+}
+
+.books-list__loan-button--return {
+  border-color: #1b8f46;
+  background: #1b8f46;
 }
 
 .books-list__action {

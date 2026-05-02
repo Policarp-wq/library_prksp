@@ -20,6 +20,11 @@ function BookCard({ book }: BookCardProps) {
         <h3 className="book-card__title">{book.title}</h3>
         <p className="book-card__author">{book.author}</p>
         <p className="book-card__year">{book.year}</p>
+        {typeof book.available === "boolean" ? (
+          <p className="book-card__year">
+            {book.available ? "Доступна" : "Занята"}
+          </p>
+        ) : null}
       </div>
     </div>
   );

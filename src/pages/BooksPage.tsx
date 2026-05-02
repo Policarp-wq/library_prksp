@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAppSelector } from "../app/hooks";
-import { BookRepository } from "../repositories/BookRepository";
+import { BookRepository, type LoanRecord } from "../repositories/BookRepository";
 import BookCard from "../components/BookCard";
 import BookForm from "../components/BookForm";
 import { Book } from "../models/Book";
@@ -17,22 +17,41 @@ function BooksPage() {
   const [editingBook, setEditingBook] = useState<Book | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [activeLoanByBookId, setActiveLoanByBookId] = useState<
+    Record<number, LoanRecord>
+  >({});
   const { user, isAuthenticated } = useAppSelector((state) => state.auth);
+  const isAdmin = Boolean(user?.roles.includes("admin"));
 
-  const fetchBooks = async (page: number = 1, search: string = "") => {
+  const fetchBooks = async (page: number = 1, query: string = "") => {
     setIsLoading(true);
+    setActionError("");
     try {
-      const result = await bookRepository.getAvailableBooks(
-        search || undefined,
-        page
-      );
+      const [result, myActiveLoans] = await Promise.all([
+        bookRepository.getAvailableBooks(query || undefined, page),
+        isAuthenticated && !isAdmin
+          ? bookRepository.getLoans(true)
+          : Promise.resolve([]),
+      ]);
+      const loansMap: Record<number, LoanRecord> = {};
+      myActiveLoans.forEach((loan) => {
+        loansMap[loan.book_id] = loan;
+      });
+
       setBooks(result.books);
       setTotal(result.total);
       setCurrentPage(result.page);
       setTotalPages(result.totalPages);
+      setActiveLoanByBookId(loansMap);
     } catch (err) {
-      console.error("Error fetching books:", err);
+      if (err instanceof Error && err.message) {
+        setActionError(err.message);
+      } else {
+        setActionError("Не удалось загрузить каталог книг");
+      }
       setBooks([]);
+      setActiveLoanByBookId({});
     } finally {
       setIsLoading(false);
     }
@@ -40,7 +59,7 @@ function BooksPage() {
 
   useEffect(() => {
     fetchBooks(1, "");
-  }, []);
+  }, [isAuthenticated, isAdmin]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +68,7 @@ function BooksPage() {
   };
 
   const handleSaveBook = async (book: Book, isEdit: boolean) => {
-    if (!user) return;
+    if (!isAdmin) return;
 
     try {
       if (isEdit && book.id) {
@@ -76,16 +95,64 @@ function BooksPage() {
   };
 
   const handleDeleteBook = async (id?: number) => {
-    if (
-      id &&
-      user &&
-      window.confirm("Вы уверены, что хотите удалить эту книгу?")
-    ) {
-      try {
-        await bookRepository.deleteBook(id);
-        fetchBooks(currentPage, searchQuery);
-      } catch (err) {
-        console.error("Error deleting book:", err);
+    if (!isAdmin || !id) {
+      return;
+    }
+
+    if (!window.confirm("Вы уверены, что хотите удалить эту книгу?")) {
+      return;
+    }
+
+    try {
+      await bookRepository.deleteBook(id);
+      setActionError("");
+      fetchBooks(currentPage, searchQuery);
+    } catch (err) {
+      if (err instanceof Error) {
+        setActionError(err.message);
+      } else {
+        setActionError("Ошибка при удалении книги");
+      }
+    }
+  };
+
+  const handleBorrowBook = async (bookId?: number) => {
+    if (!bookId || !isAuthenticated || isAdmin) {
+      return;
+    }
+
+    try {
+      await bookRepository.borrowBook(bookId);
+      setActionError("");
+      fetchBooks(currentPage, searchQuery);
+    } catch (err) {
+      if (err instanceof Error) {
+        setActionError(err.message);
+      } else {
+        setActionError("Ошибка при выдаче книги");
+      }
+    }
+  };
+
+  const handleReturnBook = async (bookId?: number) => {
+    if (!bookId || !isAuthenticated || isAdmin) {
+      return;
+    }
+
+    const loan = activeLoanByBookId[bookId];
+    if (!loan) {
+      return;
+    }
+
+    try {
+      await bookRepository.returnLoan(loan.id);
+      setActionError("");
+      fetchBooks(currentPage, searchQuery);
+    } catch (err) {
+      if (err instanceof Error) {
+        setActionError(err.message);
+      } else {
+        setActionError("Ошибка при возврате книги");
       }
     }
   };
@@ -95,12 +162,7 @@ function BooksPage() {
     setShowForm(false);
   };
 
-  const canManageBook = (book: Book) => {
-    if (!user) return false;
-    const isAdmin = user.roles.includes("admin");
-    const isOwner = book.owner_id === user.id;
-    return isAdmin || isOwner;
-  };
+  const canManageCatalog = isAuthenticated && isAdmin;
 
   const handlePageChange = (page: number) => {
     fetchBooks(page, searchQuery);
@@ -110,12 +172,11 @@ function BooksPage() {
     <div className="books-page">
       <h1>Каталог доступных книг</h1>
 
-      {/* Search Section */}
       <form onSubmit={handleSearch} className="books-search">
         <input
           className="books-search__input"
           type="text"
-          placeholder="Поиск по названию..."
+          placeholder="Поиск по названию и автору..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           disabled={isLoading}
@@ -129,8 +190,9 @@ function BooksPage() {
         </button>
       </form>
 
-      {/* Form Section */}
-      {isAuthenticated && (
+      {actionError ? <div className="books-error">{actionError}</div> : null}
+
+      {canManageCatalog && (
         <>
           {!showForm && (
             <button
@@ -153,7 +215,6 @@ function BooksPage() {
         </>
       )}
 
-      {/* Books List */}
       {isLoading ? (
         <div className="books-loading">Загрузка...</div>
       ) : books.length === 0 ? (
@@ -171,32 +232,60 @@ function BooksPage() {
               : ""}
           </div>
           <ul className="books-list">
-            {books.map((book) => (
-              <li key={book.id} className="books-list__item">
-                <BookCard book={book} />
-                {canManageBook(book) && (
-                  <div className="books-list__actions">
-                    <button
-                      className="books-list__action books-list__action--edit"
-                      onClick={() => handleEditClick(book)}
-                      title="Редактировать"
-                    >
-                      ✎
-                    </button>
-                    <button
-                      className="books-list__action books-list__action--delete"
-                      onClick={() => handleDeleteBook(book.id)}
-                      title="Удалить"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                )}
-              </li>
-            ))}
+            {books.map((book) => {
+              const activeLoan = book.id ? activeLoanByBookId[book.id] : undefined;
+              const canBorrow = isAuthenticated && !isAdmin && !activeLoan;
+              const canReturn = isAuthenticated && !isAdmin && Boolean(activeLoan);
+
+              return (
+                <li key={book.id} className="books-list__item">
+                  <BookCard book={book} />
+                  {canManageCatalog ? (
+                    <div className="books-list__actions">
+                      <button
+                        className="books-list__action books-list__action--edit"
+                        onClick={() => handleEditClick(book)}
+                        title="Редактировать"
+                      >
+                        ✎
+                      </button>
+                      <button
+                        className="books-list__action books-list__action--delete"
+                        onClick={() => handleDeleteBook(book.id)}
+                        title="Удалить"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {isAuthenticated && !isAdmin ? (
+                    <div className="books-list__loan-actions">
+                      {canBorrow ? (
+                        <button
+                          className="books-list__loan-button"
+                          onClick={() => handleBorrowBook(book.id)}
+                          disabled={isLoading || book.available === false}
+                        >
+                          Взять
+                        </button>
+                      ) : null}
+                      {canReturn ? (
+                        <button
+                          className="books-list__loan-button books-list__loan-button--return"
+                          onClick={() => handleReturnBook(book.id)}
+                          disabled={isLoading}
+                        >
+                          Вернуть
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
 
-          {/* Pagination */}
           {totalPages > 1 && (
             <div className="books-pagination">
               <button
