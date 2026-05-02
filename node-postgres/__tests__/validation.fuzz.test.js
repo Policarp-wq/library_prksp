@@ -150,11 +150,16 @@ describe('fuzz: role model and input validators', () => {
           fc.constant(undefined),
           fc.string(),
           fc.boolean(),
-          fc.object(),
           fc.record({}),
           fc.record({ bookId: fc.integer({ max: 0 }) }),
-          fc.record({ bookId: fc.string() }),
-          fc.record({ bookId: fc.float() }),
+          fc.record({
+            bookId: fc.string().filter((s) => !/^[1-9]\d*$/.test(s.trim())),
+          }),
+          fc.record({
+            bookId: fc.double({ noNaN: true }).filter(
+              (n) => !Number.isInteger(n) || n <= 0
+            ),
+          }),
           fc.record({ bookId: fc.constant(null) })
         ),
         (payload) => {

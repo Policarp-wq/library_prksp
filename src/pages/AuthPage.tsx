@@ -5,6 +5,7 @@ import { useAppDispatch, useAppSelector } from '../app/hooks'
 import {
   clearAuthError,
   loginWithCredentials,
+  registerWithCredentials,
 } from "../features/auth/authSlice";
 import "./AuthPage.css";
 
@@ -33,24 +34,11 @@ function AuthPage() {
       return;
     }
 
-    try {
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, role: "user" }),
-      });
-
-      if (!response.ok) {
-        const errData = await response.json();
-        setMessage(errData.error || "Ошибка при регистрации");
-        return;
-      }
-
-      setMessage("Регистрация успешна! Теперь вы можете войти.");
+    const action = await dispatch(registerWithCredentials({ username, password }));
+    if (registerWithCredentials.fulfilled.match(action)) {
       setRegisterUsername("");
       setRegisterPassword("");
-    } catch (e) {
-      setMessage("Сетевая ошибка при регистрации");
+      navigate("/");
     }
   };
 

@@ -291,7 +291,25 @@ app.post("/api/auth/register", async (req, res) => {
       "INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) RETURNING id, username, role",
       [username.trim(), hashedPassword, userRole]
     );
-    res.status(201).json(rows[0]);
+    const createdUser = rows[0];
+    const token = jwt.sign(
+      {
+        id: createdUser.id,
+        username: createdUser.username,
+        role: createdUser.role,
+      },
+      JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+
+    res.status(201).json({
+      token,
+      user: {
+        id: createdUser.id,
+        username: createdUser.username,
+        role: createdUser.role,
+      },
+    });
   } catch (err) {
     if (err.code === "23505") {
       // unique violation

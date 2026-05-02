@@ -40,6 +40,15 @@ export interface LoginCredentials {
   password: string;
 }
 
+interface AuthApiResponse {
+  token: string;
+  user: {
+    id: number | string;
+    username: string;
+    role: string;
+  };
+}
+
 export interface AuthState {
   isAuthenticated: boolean;
   user: AuthUser | null;
@@ -173,6 +182,7 @@ export const loginWithCredentials = createAsyncThunk<
   LoginCredentials,
   { rejectValue: string }
 >("auth/loginWithCredentials", async (credentials, thunkApi) => {
+  const authErrorMessage = "Ошибка сервера при авторизации";
   try {
     const response = await fetch("/api/auth/login", {
       method: "POST",
@@ -186,12 +196,11 @@ export const loginWithCredentials = createAsyncThunk<
       if (response.status === 401) {
         return thunkApi.rejectWithValue("Неверные учетные данные");
       }
-      return thunkApi.rejectWithValue("Ошибка сервера при авторизации");
+      return thunkApi.rejectWithValue(authErrorMessage);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as AuthApiResponse;
 
-    // server returns { token: "...", user: { id: "...", username: "...", role: "..." } }
     return {
       accessToken: data.token,
       idToken: null,
@@ -201,7 +210,46 @@ export const loginWithCredentials = createAsyncThunk<
         roles: [data.user.role],
       },
     };
-  } catch (err) {
+  } catch {
+    return thunkApi.rejectWithValue("Не удалось подключиться к серверу");
+  }
+});
+
+export const registerWithCredentials = createAsyncThunk<
+  { accessToken: string; idToken: null; user: AuthUser },
+  LoginCredentials,
+  { rejectValue: string }
+>("auth/registerWithCredentials", async (credentials, thunkApi) => {
+  try {
+    const response = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username: credentials.username,
+        password: credentials.password,
+        role: "user",
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json()) as { error?: string };
+      return thunkApi.rejectWithValue(errorData.error || "Ошибка при регистрации");
+    }
+
+    const data = (await response.json()) as AuthApiResponse;
+
+    return {
+      accessToken: data.token,
+      idToken: null,
+      user: {
+        id: data.user.id.toString(),
+        name: data.user.username,
+        roles: [data.user.role],
+      },
+    };
+  } catch {
     return thunkApi.rejectWithValue("Не удалось подключиться к серверу");
   }
 });
@@ -268,6 +316,22 @@ const authSlice = createSlice({
       .addCase(loginWithCredentials.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload ?? "Ошибка авторизации.";
+      })
+      .addCase(registerWithCredentials.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(registerWithCredentials.fulfilled, (state, action) => {
+        state.status = "idle";
+        state.isAuthenticated = true;
+        state.user = action.payload.user;
+        state.accessToken = action.payload.accessToken;
+        state.idToken = action.payload.idToken;
+        state.error = null;
+      })
+      .addCase(registerWithCredentials.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload ?? "Ошибка регистрации.";
       });
   },
 });
