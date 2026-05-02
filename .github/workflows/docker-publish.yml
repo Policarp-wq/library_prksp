@@ -70,3 +70,13 @@ jobs:
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/library_prksp_backend:latest
             ${{ secrets.DOCKER_USERNAME }}/library_prksp_backend:${{ github.sha }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/library_prksp_frontend:latest
+            ${{ secrets.DOCKER_USERNAME }}/library_prksp_frontend:${{ github.sha }}
