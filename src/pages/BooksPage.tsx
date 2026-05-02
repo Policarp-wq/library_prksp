@@ -94,8 +94,13 @@ function BooksPage() {
     setShowForm(true);
   };
 
-  const handleDeleteBook = async (id?: number) => {
-    if (!isAdmin || !id) {
+  const handleDeleteBook = async (book: Book) => {
+    if (!isAdmin || !book.id) {
+      return;
+    }
+
+    if (book.canDelete === false) {
+      setActionError(book.deleteReason || "Нельзя удалить: книга сейчас выдана");
       return;
     }
 
@@ -104,7 +109,7 @@ function BooksPage() {
     }
 
     try {
-      await bookRepository.deleteBook(id);
+      await bookRepository.deleteBook(book.id);
       setActionError("");
       fetchBooks(currentPage, searchQuery);
     } catch (err) {
@@ -241,22 +246,28 @@ function BooksPage() {
                 <li key={book.id} className="books-list__item">
                   <BookCard book={book} />
                   {canManageCatalog ? (
-                    <div className="books-list__actions">
-                      <button
-                        className="books-list__action books-list__action--edit"
-                        onClick={() => handleEditClick(book)}
-                        title="Редактировать"
-                      >
-                        ✎
-                      </button>
-                      <button
-                        className="books-list__action books-list__action--delete"
-                        onClick={() => handleDeleteBook(book.id)}
-                        title="Удалить"
-                      >
-                        ✕
-                      </button>
-                    </div>
+                    <>
+                      <div className="books-list__actions">
+                        <button
+                          className="books-list__action books-list__action--edit"
+                          onClick={() => handleEditClick(book)}
+                          title="Редактировать"
+                        >
+                          ✎
+                        </button>
+                        <button
+                          className="books-list__action books-list__action--delete"
+                          onClick={() => handleDeleteBook(book)}
+                          title={book.canDelete === false ? book.deleteReason : "Удалить"}
+                          disabled={book.canDelete === false}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      {book.canDelete === false && book.deleteReason ? (
+                        <div className="books-list__delete-hint">{book.deleteReason}</div>
+                      ) : null}
+                    </>
                   ) : null}
 
                   {isAuthenticated && !isAdmin ? (

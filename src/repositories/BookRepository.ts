@@ -10,6 +10,8 @@ interface BooksResponse {
     image: string | null;
     owner_id: string | null;
     available?: boolean;
+    canDelete?: boolean;
+    deleteReason?: string | null;
   }>;
   total: number;
   page: number;
@@ -71,7 +73,9 @@ export class BookRepository {
             b.image ?? undefined,
             b.id,
             b.owner_id ?? undefined,
-            b.available
+            b.available,
+            b.canDelete,
+            b.deleteReason ?? undefined
           )
       ),
       total: data.total,

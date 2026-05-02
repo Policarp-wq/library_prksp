@@ -213,10 +213,18 @@ async function initDb() {
       CREATE TABLE IF NOT EXISTS loans (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users(id),
-        book_id INTEGER NOT NULL REFERENCES books(id),
+        book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
         issued_at TIMESTAMP NOT NULL DEFAULT NOW(),
         returned_at TIMESTAMP NULL
       );
+    `);
+    await pool.query(`
+      ALTER TABLE loans DROP CONSTRAINT IF EXISTS loans_book_id_fkey;
+    `);
+    await pool.query(`
+      ALTER TABLE loans
+      ADD CONSTRAINT loans_book_id_fkey
+      FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE;
     `);
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_loans_book_active ON loans(book_id) WHERE returned_at IS NULL;
@@ -395,7 +403,20 @@ app.get("/api/books", async (req, res) => {
           SELECT 1
           FROM loans l
           WHERE l.book_id = b.id AND l.returned_at IS NULL
-        ) AS available
+        ) AS available,
+        NOT EXISTS (
+          SELECT 1
+          FROM loans l_active
+          WHERE l_active.book_id = b.id AND l_active.returned_at IS NULL
+        ) AS "canDelete",
+        CASE
+          WHEN EXISTS (
+            SELECT 1
+            FROM loans l_active
+            WHERE l_active.book_id = b.id AND l_active.returned_at IS NULL
+          ) THEN 'Нельзя удалить: книга сейчас выдана'
+          ELSE NULL
+        END AS "deleteReason"
       FROM books b
       ${whereSql}
       ORDER BY b.id DESC
@@ -473,6 +494,14 @@ app.delete(
   }
 
   try {
+    const { rows: activeLoans } = await pool.query(
+      "SELECT id FROM loans WHERE book_id = $1 AND returned_at IS NULL LIMIT 1",
+      [id]
+    );
+    if (activeLoans.length > 0) {
+      return res.status(409).json({ error: "Нельзя удалить: книга сейчас выдана" });
+    }
+
     const { rowCount } = await pool.query("DELETE FROM books WHERE id = $1", [
       id,
     ]);
@@ -481,6 +510,11 @@ app.delete(
     }
     res.status(204).end();
   } catch (err) {
+    if (err.code === "23503") {
+      return res
+        .status(409)
+        .json({ error: "Нельзя удалить: книга сейчас выдана" });
+    }
     res.status(500).json({ error: err.message });
   }
 });
