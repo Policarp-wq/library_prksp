@@ -76,6 +76,16 @@ API выдачи/возврата:
 
 1. docker compose down
 
+### Продакшн compose (образы из Docker Hub)
+
+Файл: docker-compose.prod.yml (без сборки, только pull image).
+
+Из корня проекта:
+
+1. задать переменные окружения DOCKER_USERNAME, IMAGE_TAG, JWT_SECRET
+2. docker compose -f docker-compose.prod.yml pull
+3. docker compose -f docker-compose.prod.yml up -d
+
 ### Фаззинг-тестирование
 
 Тесты находятся в node-postgres/__tests__/validation.fuzz.test.js.
