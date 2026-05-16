@@ -1,121 +1,94 @@
-## library_prksp
+# Электронная библиотека
 
-Клиент-серверное приложение управления библиотечным фондом.
+Курсовая работа: веб-приложение, в котором ведётся каталог книг, а зарегистрированные читатели берут их «на руки» и потом возвращают. Администратор управляет каталогом, обычный пользователь — только своими выдачами.
 
-### Стек
+## Что внутри
 
-- Frontend: React + TypeScript + Vite
-- Backend: Node.js + Express
-- Database: PostgreSQL
-- Auth: JWT (role-based access)
-- Tests: Jest + fast-check (fuzz)
-- Containerization: Docker, Docker Compose
+Любой посетитель видит каталог: список книг с автором, годом издания и пометкой, выдана ли книга прямо сейчас. По каталогу работает поиск по названию и автору, постранично — по двенадцать карточек.
 
-### Структура проекта
+Зарегистрированный пользователь может взять свободную книгу: создаётся выдача с датой. Пока книга не возвращена, никто другой не сможет её получить, а в каталоге она помечается как недоступная. Свои активные и закрытые выдачи пользователь видит в отдельном разделе, возврат — одной кнопкой.
 
-- src/: клиентская часть
-	- app/: роутинг, layout, store, hooks
-	- features/auth/: логика авторизации и хранения сессии
-	- pages/: страницы (Home, Auth, Books, Admin)
-	- components/: UI-компоненты
-	- repositories/: клиентские вызовы API
-- node-postgres/: серверная часть
-	- server.js: API, auth, валидация, инициализация БД
-	- __tests__/validation.fuzz.test.js: фаззинг-тесты
-	- Dockerfile: контейнер backend
-- nginx/default.conf: проксирование frontend -> backend
-- Dockerfile: контейнер frontend
-- docker-compose.yml: запуск db + backend + frontend
+У каждой книги может быть ссылка-источник — например, на онлайн-версию. Ссылки нормализуются и проверяются: разрешены только `http` и `https`, запрещены `javascript:`, `data:` и адреса на localhost, чтобы через форму редактирования нельзя было подложить вредоносную ссылку.
 
-### Авторизация и роли
+Администратор управляет каталогом — добавляет, редактирует и удаляет книги. Удалить книгу, которая сейчас на руках у читателя, нельзя — сначала её должны вернуть. При удалении книги, у которой остались только исторические (закрытые) выдачи, эти записи удаляются каскадно.
 
-- Роли: admin, user
-- Регистрация создает только user
-- После успешной регистрации пользователь автоматически авторизуется
-- Саморегистрация admin запрещена
-- Каталогом управляет только администратор: POST/PUT/DELETE /api/books доступны только роли admin
-- Защищенные маршруты проверяются по роли
-- Для API используется Bearer JWT
+## Учётные записи
 
-### База данных и тестовые данные
+При первом старте бэкенд накатывает схему, заводит две демонстрационные учётки и три книги:
 
-При старте backend автоматически:
+| Логин   | Пароль  | Роль  |
+|---------|---------|-------|
+| `admin` | `admin` | admin |
+| `user`  | `user`  | user  |
 
-- создает таблицы users, books и loans
-- добавляет пользователей:
-	- admin/admin (role: admin)
-	- user/user (role: user)
-- добавляет стартовые книги в каталог
-- добавляет демонстрационные выдачи книг (одна активная и одна возвращенная)
+Регистрация через UI создаёт только обычного пользователя — сделать второго `admin` через форму нельзя.
 
-### Выдача книг
+## Стек
 
-API выдачи/возврата:
+- Frontend: React 18, TypeScript, Vite, React Router
+- Backend: Node.js, Express, TypeScript, `pg`
+- База данных: PostgreSQL 15
+- Auth: JWT, bcrypt, ролевая модель
+- Тесты: Jest, supertest, fast-check (property-based фаззинг)
+- Контейнеризация: Docker, Docker Compose
+- Reverse proxy: nginx (отдача фронта, проксирование `/api` в бэкенд)
 
-- POST /api/loans (auth user): body { "bookId": number }, создает выдачу, если книга свободна
-- PATCH /api/loans/:id/return (auth user): возврат книги владельцем выдачи или администратором
-- GET /api/loans (auth user): admin видит все выдачи, user — только свои
-- GET /api/loans?active=true: только активные выдачи
+## Структура репозитория
 
-Логика:
+- `src/` — React-клиент.
+- `node-postgres/` — Node.js бэкенд.
+- `nginx/` — конфигурация reverse-proxy.
+- `docker-compose.yml` — локальный запуск со сборкой из исходников.
+- `docker-compose.prod.yml` — продакшен-запуск из образов с Docker Hub.
 
-- Если на книгу есть активная выдача (returned_at IS NULL), повторная выдача возвращает 409
-- В GET /api/books каждая книга содержит поле available (boolean), показывающее доступность
-- Для книги можно задать URL-источник (отображается в карточке)
-- URL валидируется: разрешены только http/https, запрещены javascript/data и localhost loopback адреса
-- Книгу нельзя удалить, если на неё есть активная выдача; при удалении книги исторические выдачи удаляются каскадно
-- Поиск каталога поддерживает query-параметры q, title, author (case-insensitive)
+## Запуск
 
-### Запуск через Docker Compose
+### Локально из исходников
 
-Из корня проекта:
+```bash
+docker compose up -d --build
+```
 
-1. docker compose up -d --build
-2. Открыть frontend: http://localhost:8080
-3. Backend API: http://localhost:3000
+Открыть http://localhost:8080. API — http://localhost:3000.
 
-Остановка:
+Остановить:
 
-1. docker compose down
+```bash
+docker compose down
+```
 
-### Продакшн compose (образы из Docker Hub)
+### На VPS из образов Docker Hub
 
-Файл: docker-compose.prod.yml (без сборки, только pull image).
+```bash
+git clone https://github.com/Policarp-wq/library_prksp.git
+cd library_prksp
+# подготовить .env: DOCKER_USERNAME, IMAGE_TAG, JWT_SECRET
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
 
-Из корня проекта:
+HTTPS поднимается отдельно: сертификаты от Let's Encrypt (`certbot certonly --standalone`) кладутся в `./certs/fullchain.pem` и `./certs/privkey.pem`, после чего frontend-контейнер перезапускается.
 
-1. задать переменные окружения DOCKER_USERNAME, IMAGE_TAG, JWT_SECRET
-2. docker compose -f docker-compose.prod.yml pull
-3. docker compose -f docker-compose.prod.yml up -d
+## Переменные окружения
 
-Let's Encrypt (certbot):
+| Переменная | Назначение |
+|---|---|
+| `PORT` | Порт backend, по умолчанию `3000`. |
+| `PGHOST` | Хост Postgres. В docker-compose автоматически указывает на сервис `db`. |
+| `PGPORT` | Порт Postgres, по умолчанию `5432`. |
+| `PGUSER`, `PGPASSWORD`, `PGDATABASE` | Креды и имя БД. |
+| `JWT_SECRET` | Секрет для подписи JWT. Обязательно сменить в проде. |
+| `NODE_ENV` | `production` / `development` / `test`. |
 
-1. DNS A-запись домена должна указывать на VPS (если Cloudflare используется, для выпуска сертификата выставить DNS only на время проверки)
-2. На VPS выпустить сертификат:
-	- sudo certbot certonly --standalone -d your-domain.com --agree-tos -m you@example.com --non-interactive
-3. Положить сертификаты в ./certs:
-	- cp /etc/letsencrypt/live/your-domain.com/fullchain.pem ./certs/fullchain.pem
-	- cp /etc/letsencrypt/live/your-domain.com/privkey.pem ./certs/privkey.pem
-4. Перезапустить frontend:
-	- docker compose -f docker-compose.prod.yml up -d frontend
+## Тесты
 
-### Фаззинг-тестирование
+```bash
+cd node-postgres
+npm test
+```
 
-Тесты находятся в node-postgres/__tests__/validation.fuzz.test.js.
+Прогоняются тесты ключевых ручек API через supertest (на замоканном `pg`) и property-based фаззинг валидаторов через fast-check — роли, имена пользователей, пароли, идентификаторы, payload книги и выдачи.
 
-Запуск:
+## Автор
 
-1. cd node-postgres
-2. npm test
-
-Проверяются:
-
-- валидация ролей
-- валидация username/password
-- валидация id
-- валидация payload книги
-
-### Docker
-
-- Frontend Dockerfile: Dockerfile
-- Backend Dockerfile: node-postgres/Dockerfile
+[Policarp-wq](https://github.com/Policarp-wq)
