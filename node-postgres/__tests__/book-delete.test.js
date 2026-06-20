@@ -13,8 +13,7 @@ const request = require("supertest");
 const { app } = require("../server");
 
 function adminToken() {
-  const secret = process.env.JWT_SECRET || "super-secret-key-change-me";
-  return jwt.sign({ id: 1, username: "admin", role: "admin" }, secret, {
+  return jwt.sign({ id: 1, username: "admin", role: "admin" }, process.env.JWT_SECRET, {
     expiresIn: "1h",
   });
 }

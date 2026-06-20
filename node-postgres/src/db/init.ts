@@ -1,5 +1,6 @@
 import bcrypt from "bcrypt";
 import { pool } from "../config/db";
+import { env } from "../config/env";
 
 const BCRYPT_ROUNDS = 10;
 
@@ -16,13 +17,28 @@ export async function initDb(): Promise<void> {
 
     const countUsersRes = await pool.query<{ count: string }>("SELECT count(*) FROM users");
     if (countUsersRes.rows[0].count === "0") {
-      const adminHash = await bcrypt.hash("admin", BCRYPT_ROUNDS);
-      const userHash = await bcrypt.hash("user", BCRYPT_ROUNDS);
-      await pool.query(
-        "INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3), ($4, $5, $6)",
-        ["admin", adminHash, "admin", "user", userHash, "user"],
-      );
-      console.log("Начальные пользователи добавлены.");
+      if (env.seed.demoUsers) {
+        if (!env.seed.adminPassword || !env.seed.userPassword) {
+          console.warn(
+            "SEED_DEMO_USERS=true, but SEED_ADMIN_PASSWORD and/or SEED_USER_PASSWORD are empty — skipping seed.",
+          );
+        } else {
+          const adminHash = await bcrypt.hash(env.seed.adminPassword, BCRYPT_ROUNDS);
+          const userHash = await bcrypt.hash(env.seed.userPassword, BCRYPT_ROUNDS);
+          await pool.query(
+            "INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3), ($4, $5, $6)",
+            [
+              env.seed.adminUsername,
+              adminHash,
+              "admin",
+              env.seed.userUsername,
+              userHash,
+              "user",
+            ],
+          );
+          console.log("Демонстрационные пользователи добавлены.");
+        }
+      }
     }
 
     await pool.query(`
@@ -81,10 +97,10 @@ export async function initDb(): Promise<void> {
     `);
 
     const countLoansRes = await pool.query<{ count: string }>("SELECT count(*) FROM loans");
-    if (countLoansRes.rows[0].count === "0") {
+    if (env.seed.demoUsers && countLoansRes.rows[0].count === "0") {
       const userResult = await pool.query<{ id: number }>(
         "SELECT id FROM users WHERE username = $1 LIMIT 1",
-        ["user"],
+        [env.seed.userUsername],
       );
       const booksResult = await pool.query<{ id: number }>(
         "SELECT id FROM books ORDER BY id ASC LIMIT 2",

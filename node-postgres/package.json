@@ -8,7 +8,9 @@
     "start": "node server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "pretest": "tsc",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand",
+    "test:fuzz": "jest --runInBand __tests__/validation.fuzz.test.js",
+    "test:fuzz:protocol": "jest --runInBand __tests__/validation.fuzz.test.js --json --outputFile=fuzz-report.json"
   },
   "author": "",
   "license": "ISC",
@@ -19,6 +21,11 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.20.0"
+  },
+  "jest": {
+    "setupFiles": [
+      "<rootDir>/jest.setup.js"
+    ]
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
