@@ -11,10 +11,16 @@ const {
   validateLoanPayload,
 } = require('../server');
 
-const QUICK_FC = { numRuns: 20 };
+const DEFAULT_NUM_RUNS = 1000;
+const NUM_RUNS = Number(process.env.FAST_CHECK_NUM_RUNS) || DEFAULT_NUM_RUNS;
+const SEED = Number(process.env.FAST_CHECK_SEED) || 4242;
+
+const FC_PARAMS = { numRuns: NUM_RUNS, seed: SEED };
+
+jest.setTimeout(120000);
 
 describe('fuzz: role model and input validators', () => {
-  test('only admin/user are allowed roles', () => {
+  test(`only admin/user are allowed roles [numRuns=${NUM_RUNS}]`, () => {
     const allowed = [...ALLOWED_ROLES];
 
     expect(allowed).toEqual(expect.arrayContaining(['admin', 'user']));
@@ -27,50 +33,50 @@ describe('fuzz: role model and input validators', () => {
         }
         return ALLOWED_ROLES.has(role) === false;
       }),
-      QUICK_FC
+      FC_PARAMS
     );
   });
 
-  test('username validator accepts only trimmed length 3..50 strings', () => {
+  test(`username validator accepts only trimmed length 3..50 strings [numRuns=${NUM_RUNS}]`, () => {
     fc.assert(
       fc.property(fc.string({ minLength: 3, maxLength: 50 }), (raw) => {
         const value = raw.trim();
         fc.pre(value.length >= 3 && value.length <= 50);
         return isValidUsername(value) === true;
       }),
-      QUICK_FC
+      FC_PARAMS
     );
 
     fc.assert(
       fc.property(fc.oneof(fc.integer(), fc.boolean(), fc.constant(null), fc.constant(undefined), fc.object()), (value) => {
         return isValidUsername(value) === false;
       }),
-      QUICK_FC
+      FC_PARAMS
     );
   });
 
-  test('password validator rejects non-strings and empty/too short strings', () => {
+  test(`password validator rejects non-strings and empty/too short strings [numRuns=${NUM_RUNS}]`, () => {
     fc.assert(
       fc.property(fc.oneof(fc.integer(), fc.boolean(), fc.constant(null), fc.constant(undefined), fc.object()), (value) => {
         return isValidPassword(value) === false;
       }),
-      QUICK_FC
+      FC_PARAMS
     );
 
     fc.assert(
       fc.property(fc.string({ maxLength: 3 }), (value) => {
         return isValidPassword(value) === false;
       }),
-      QUICK_FC
+      FC_PARAMS
     );
   });
 
-  test('id parser returns only positive integers', () => {
+  test(`id parser returns only positive integers [numRuns=${NUM_RUNS}]`, () => {
     fc.assert(
       fc.property(fc.integer({ min: 1, max: 1000000 }), (id) => {
         return parsePositiveIntId(String(id)) === id;
       }),
-      QUICK_FC
+      FC_PARAMS
     );
 
     fc.assert(
@@ -86,11 +92,11 @@ describe('fuzz: role model and input validators', () => {
           return parsed === null;
         }
       ),
-      QUICK_FC
+      FC_PARAMS
     );
   });
 
-  test('book payload validator accepts valid payload and rejects malformed payload', () => {
+  test(`book payload validator accepts valid payload and rejects malformed payload [numRuns=${NUM_RUNS}]`, () => {
     fc.assert(
       fc.property(
         fc.record({
@@ -110,7 +116,7 @@ describe('fuzz: role model and input validators', () => {
           return result.ok === true;
         }
       ),
-      QUICK_FC
+      FC_PARAMS
     );
 
     fc.assert(
@@ -165,17 +171,17 @@ describe('fuzz: role model and input validators', () => {
         const result = validateBookPayload(payload);
         return result.ok === false;
       }),
-      QUICK_FC
+      FC_PARAMS
     );
   });
 
-  test('loan payload validator accepts only positive integer bookId', () => {
+  test(`loan payload validator accepts only positive integer bookId [numRuns=${NUM_RUNS}]`, () => {
     fc.assert(
       fc.property(fc.integer({ min: 1, max: 1000000 }), (bookId) => {
         const result = validateLoanPayload({ bookId });
         return result.ok === true && result.data.bookId === bookId;
       }),
-      QUICK_FC
+      FC_PARAMS
     );
 
     fc.assert(
@@ -202,7 +208,7 @@ describe('fuzz: role model and input validators', () => {
           return result.ok === false;
         }
       ),
-      QUICK_FC
+      FC_PARAMS
     );
   });
 });

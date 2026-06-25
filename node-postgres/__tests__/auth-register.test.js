@@ -36,10 +36,7 @@ describe("POST /api/auth/register", () => {
     });
     expect(typeof response.body.token).toBe("string");
 
-    const decoded = jwt.verify(
-      response.body.token,
-      process.env.JWT_SECRET || "super-secret-key-change-me"
-    );
+    const decoded = jwt.verify(response.body.token, process.env.JWT_SECRET);
 
     expect(decoded).toMatchObject({
       id: 77,
