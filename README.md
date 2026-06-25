@@ -92,8 +92,6 @@ HTTPS поднимается отдельно: сертификаты от Let's
 
 ## Admin-команды
 
-Миграции и сидинг — отдельные one-off процессы (12-factor V/XII), не побочный эффект запуска web-процесса:
-
 ```bash
 cd node-postgres
 npm run build
@@ -110,7 +108,7 @@ npm run db:seed      # засидить демо-данные (если SEED_DEM
 
 ## Graceful shutdown
 
-`SIGTERM`/`SIGINT` закрывают HTTP-сервер и пул `pg` за окно 10 секунд, после чего процесс выходит. В docker-compose `init: true` гарантирует доставку сигналов до Node-процесса.
+`SIGTERM`/`SIGINT` закрывают HTTP-сервер и пул `pg` за 10 секунд, после чего процесс выходит. В docker-compose `init: true` гарантирует доставку сигналов до Node-процесса.
 
 ## Тесты
 
@@ -118,8 +116,6 @@ npm run db:seed      # засидить демо-данные (если SEED_DEM
 cd node-postgres
 npm test
 ```
-
-Прогоняются тесты ключевых ручек API через supertest (на замоканном `pg`) и property-based фаззинг валидаторов через fast-check — роли, имена пользователей, пароли, идентификаторы, payload книги и выдачи.
 
 ## Автор
 
