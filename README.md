@@ -14,12 +14,17 @@
 
 ## Учётные записи
 
-При первом старте бэкенд накатывает схему, заводит две демонстрационные учётки и три книги:
+Схема БД накатывается отдельной admin-командой `npm run db:migrate` (или сервисом `migrate` в `docker-compose`). Веб-процесс на старте схему не трогает.
 
-| Логин   | Пароль  | Роль  |
-|---------|---------|-------|
-| `admin` | `admin` | admin |
-| `user`  | `user`  | user  |
+Демонстрационные учётки по умолчанию не создаются. Чтобы засидить их локально, в `.env` нужно выставить:
+
+```
+SEED_DEMO_USERS=true
+SEED_ADMIN_PASSWORD=<любой пароль для admin>
+SEED_USER_PASSWORD=<любой пароль для user>
+```
+
+И выполнить `npm run db:seed` (после `db:migrate`). В продакшен-конфигурации `SEED_DEMO_USERS=false`, демо-аккаунтов нет.
 
 Регистрация через UI создаёт только обычного пользователя — сделать второго `admin` через форму нельзя.
 
@@ -71,14 +76,41 @@ HTTPS поднимается отдельно: сертификаты от Let's
 
 ## Переменные окружения
 
-| Переменная | Назначение |
-|---|---|
-| `PORT` | Порт backend, по умолчанию `3000`. |
-| `PGHOST` | Хост Postgres. В docker-compose автоматически указывает на сервис `db`. |
-| `PGPORT` | Порт Postgres, по умолчанию `5432`. |
-| `PGUSER`, `PGPASSWORD`, `PGDATABASE` | Креды и имя БД. |
-| `JWT_SECRET` | Секрет для подписи JWT. Обязательно сменить в проде. |
-| `NODE_ENV` | `production` / `development` / `test`. |
+В `NODE_ENV=production` все обязательные переменные должны быть заданы — иначе бэкенд падает на старте (`requireEnv` в `src/config/env.ts`) или compose не поднимает контейнер (`${VAR:?...}`). Пример значений — `node-postgres/.env.example`.
+
+| Переменная | Назначение | Required в prod |
+|---|---|---|
+| `NODE_ENV` | `production` / `development` / `test`. | да |
+| `PORT` | Порт backend, по умолчанию `3000`. | нет |
+| `PGHOST` | Хост Postgres. В docker-compose — `db`. | да |
+| `PGPORT` | Порт Postgres, по умолчанию `5432`. | нет |
+| `PGUSER`, `PGDATABASE` | Креды и имя БД. | да |
+| `PGPASSWORD` | Пароль БД. | да |
+| `JWT_SECRET` | Секрет подписи JWT, минимум 32 символа. | да |
+| `SEED_DEMO_USERS` | `true`/`false`. Включает сидинг демо-учёток. По умолчанию `false`. | нет |
+| `SEED_ADMIN_PASSWORD`, `SEED_USER_PASSWORD` | Пароли демо-учёток. Обязательны при `SEED_DEMO_USERS=true`. | нет |
+
+## Admin-команды
+
+Миграции и сидинг — отдельные one-off процессы (12-factor V/XII), не побочный эффект запуска web-процесса:
+
+```bash
+cd node-postgres
+npm run build
+npm run db:migrate   # создать/обновить схему
+npm run db:seed      # засидить демо-данные (если SEED_DEMO_USERS=true)
+```
+
+В `docker-compose.yml`/`docker-compose.prod.yml` миграция выполняется сервисом `migrate` до запуска `backend` (`depends_on: migrate: condition: service_completed_successfully`).
+
+## Health endpoints
+
+- `GET /healthz` — liveness: процесс жив (HTTP 200).
+- `GET /readyz` — readiness: процесс держит соединение с БД (HTTP 200, иначе 503). Используется в docker healthcheck сервиса `backend`.
+
+## Graceful shutdown
+
+`SIGTERM`/`SIGINT` закрывают HTTP-сервер и пул `pg` за окно 10 секунд, после чего процесс выходит. В docker-compose `init: true` гарантирует доставку сигналов до Node-процесса.
 
 ## Тесты
 
