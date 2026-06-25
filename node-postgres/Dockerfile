@@ -20,4 +20,6 @@ COPY server.js ./
 
 EXPOSE 3000
 
+STOPSIGNAL SIGTERM
+
 CMD ["node", "server.js"]

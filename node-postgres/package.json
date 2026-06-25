@@ -10,7 +10,9 @@
     "pretest": "tsc",
     "test": "jest --runInBand",
     "test:fuzz": "jest --runInBand __tests__/validation.fuzz.test.js",
-    "test:fuzz:protocol": "jest --runInBand __tests__/validation.fuzz.test.js --json --outputFile=fuzz-report.json"
+    "test:fuzz:protocol": "jest --runInBand __tests__/validation.fuzz.test.js --json --outputFile=fuzz-report.json",
+    "db:migrate": "node dist/scripts/migrate.js",
+    "db:seed": "node dist/scripts/seed.js"
   },
   "author": "",
   "license": "ISC",
