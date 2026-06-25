@@ -13,8 +13,25 @@ services:
       timeout: 5s
       retries: 5
 
+  migrate:
+    image: ${DOCKER_USERNAME}/library_prksp_backend:${IMAGE_TAG:-latest}
+    command: ["node", "dist/scripts/migrate.js"]
+    restart: "no"
+    environment:
+      NODE_ENV: production
+      PGHOST: db
+      PGPORT: 5432
+      PGUSER: ${PGUSER:?Set PGUSER in .env}
+      PGPASSWORD: ${PGPASSWORD:?Set PGPASSWORD in .env}
+      PGDATABASE: ${PGDATABASE:?Set PGDATABASE in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+    depends_on:
+      db:
+        condition: service_healthy
+
   backend:
     image: ${DOCKER_USERNAME}/library_prksp_backend:${IMAGE_TAG:-latest}
+    init: true
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -29,9 +46,16 @@ services:
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
       SEED_USER_USERNAME: ${SEED_USER_USERNAME:-}
       SEED_USER_PASSWORD: ${SEED_USER_PASSWORD:-}
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3000/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1));\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
   frontend:
     image: ${DOCKER_USERNAME}/library_prksp_frontend:${IMAGE_TAG:-latest}
