@@ -16,15 +16,17 @@
 
 Схема БД накатывается отдельной admin-командой `npm run db:migrate` (или сервисом `migrate` в `docker-compose`). Веб-процесс на старте схему не трогает.
 
-Демонстрационные учётки по умолчанию не создаются. Чтобы засидить их локально, в `.env` нужно выставить:
+Демонстрационные учётки `admin` и `user` создаются отдельным сервисом `seed` в `docker-compose`, который выполняется автоматически между `migrate` и `backend`. По умолчанию сидинг выключен — сервис `seed` отрабатывает no-op'ом. Чтобы учётки появились, в `.env` нужно выставить:
 
 ```
 SEED_DEMO_USERS=true
-SEED_ADMIN_PASSWORD=<любой пароль для admin>
-SEED_USER_PASSWORD=<любой пароль для user>
+SEED_ADMIN_PASSWORD=<пароль для admin>
+SEED_USER_PASSWORD=<пароль для user>
 ```
 
-И выполнить `npm run db:seed` (после `db:migrate`). В продакшен-конфигурации `SEED_DEMO_USERS=false`, демо-аккаунтов нет.
+При `docker compose up` после этого `admin` и `user` создадутся автоматически (сервис `seed` идемпотентен: если учётки уже есть, повторный прогон ничего не делает).
+
+Вне `docker-compose` сидинг запускается командой `npm run db:seed` после `db:migrate`. На уже работающем контейнере backend учётки можно дозасидить через `docker compose -f docker-compose.prod.yml exec backend node dist/scripts/seed.js`.
 
 Регистрация через UI создаёт только обычного пользователя — сделать второго `admin` через форму нельзя.
 
@@ -99,7 +101,7 @@ npm run db:migrate   # создать/обновить схему
 npm run db:seed      # засидить демо-данные (если SEED_DEMO_USERS=true)
 ```
 
-В `docker-compose.yml`/`docker-compose.prod.yml` миграция выполняется сервисом `migrate` до запуска `backend` (`depends_on: migrate: condition: service_completed_successfully`).
+В `docker-compose.yml`/`docker-compose.prod.yml` миграция выполняется сервисом `migrate`, затем сидинг — сервисом `seed`, и только потом стартует `backend` (`depends_on: service_completed_successfully` на обоих).
 
 ## Health endpoints
 

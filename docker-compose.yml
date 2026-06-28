@@ -33,6 +33,31 @@ services:
       db:
         condition: service_healthy
 
+  seed:
+    build:
+      context: ./node-postgres
+      dockerfile: Dockerfile
+    command: ["node", "dist/scripts/seed.js"]
+    restart: "no"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PGHOST: db
+      PGPORT: 5432
+      PGUSER: ${PGUSER:?Set PGUSER in .env}
+      PGPASSWORD: ${PGPASSWORD:?Set PGPASSWORD in .env}
+      PGDATABASE: ${PGDATABASE:?Set PGDATABASE in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      SEED_DEMO_USERS: ${SEED_DEMO_USERS:-false}
+      SEED_ADMIN_USERNAME: ${SEED_ADMIN_USERNAME:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      SEED_USER_USERNAME: ${SEED_USER_USERNAME:-}
+      SEED_USER_PASSWORD: ${SEED_USER_PASSWORD:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
   backend:
     build:
       context: ./node-postgres
@@ -63,6 +88,8 @@ services:
       db:
         condition: service_healthy
       migrate:
+        condition: service_completed_successfully
+      seed:
         condition: service_completed_successfully
 
   frontend:
